@@ -1,0 +1,84 @@
+/* Lightweight custom CSS optimized for Sub-Saharan Africa */
+
+/* Performance optimizations */
+* {
+    box-sizing: border-box;
+}
+
+/* Reduce animations to save bandwidth and battery */
+* {
+    -webkit-animation-duration: 0.1s !important;
+    animation-duration: 0.1s !important;
+    -webkit-transition-duration: 0.1s !important;
+    transition-duration: 0.1s !important;
+}
+
+/* High contrast for outdoor visibility */
+.navbar-brand {
+    font-weight: 600;
+    font-size: 1.3rem;
+}
+
+/* Improved button visibility */
+.btn {
+    font-weight: 500;
+    border-width: 2px;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #006fe6;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #004085;
+}
+
+/* Better form visibility */
+.form-control {
+    border-width: 2px;
+    font-size: 1rem;
+}
+
+.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Mobile-first approach */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: none;
+    }
+    
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+}
+
+/* Offline indicator */
+.offline-indicator {
+    background-color: #dc3545;
+    color: white;
+    padding: 5px 10px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    text-align: center;
+    display: none;
+}

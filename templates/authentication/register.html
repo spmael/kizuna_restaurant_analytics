@@ -1,0 +1,63 @@
+{% extends 'base/base.html' %}
+{% load static i18n crispy_forms_tags %}
+
+{% block title %}{% trans "Create Account" %} - Kizuna Restaurant Analytics{% endblock %}
+
+{% block body_class %}register-page{% endblock %}
+
+{% block main_class %}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-7">
+            <div class="card shadow mt-5">
+                <div class="card-header text-center bg-success text-white">
+                    <h3>🍽️ {% trans "Join Kizuna Restaurant Analytics" %}</h3>
+                    <p class="mb-0">{% trans "Start analyzing your restaurant data today" %}</p>
+                </div>
+                <div class="card-body p-4">
+                    <h4 class="text-center mb-4">{% trans "Create Your Account" %}</h4>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        {% crispy form %}
+                    </form>
+                    
+                    <hr>
+                    <div class="text-center">
+                        <p class="mb-0">
+                            {% trans "Already have an account?" %} 
+                            <a href="{% url 'authentication:login' %}" class="text-primary">
+                                {% trans "Sign in" %}
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// HTMX email availability check (lightweight enhancement)
+document.body.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.xhr.status === 200 && evt.target.name === 'email') {
+        const response = JSON.parse(evt.detail.xhr.responseText);
+        const emailField = evt.target;
+        const feedback = emailField.parentNode.querySelector('.email-feedback') || 
+                        document.createElement('small');
+        
+        feedback.className = 'email-feedback form-text';
+        feedback.textContent = response.message;
+        feedback.style.color = response.available ? 'green' : 'red';
+        
+        if (!emailField.parentNode.querySelector('.email-feedback')) {
+            emailField.parentNode.appendChild(feedback);
+        }
+    }
+});
+</script>
+{% endblock %}

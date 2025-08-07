@@ -24,4 +24,4 @@ MIGRATION_MODULES = DisableMigrations()
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
 # Disable logging for testing
-LOGGING_CONFIG = True
+LOGGING_CONFIG = None

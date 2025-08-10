@@ -51,7 +51,10 @@ class TestDataProcessingPipeline(TestCase):
     @patch("data_engineering.pipelines.initial_load_pipeline.OdooDataTransformer")
     @patch("data_engineering.pipelines.initial_load_pipeline.RestaurantDataLoader")
     def test_successful_pipeline_execution(
-        self, mock_loader_class, mock_transformer_class, mock_extractor_class
+        self,
+        mock_loader_class,
+        mock_transformer_class,
+        mock_extractor_class,
     ):
         """Test successful pipeline execution"""
         # Mock the components
@@ -243,7 +246,7 @@ class TestDataProcessingPipeline(TestCase):
             result = pipeline._transform_data(extracted_data)
 
             self.assertIsNotNone(result)
-            mock_transformer_class.assert_called_once_with(self.user)
+            mock_transformer_class.assert_called_once_with(user=self.user)
 
     def test_transform_data_with_recipes_data(self):
         """Test data transformation for recipes data files"""
@@ -265,7 +268,7 @@ class TestDataProcessingPipeline(TestCase):
             result = pipeline._transform_data(extracted_data)
 
             self.assertIsNotNone(result)
-            mock_transformer_class.assert_called_once_with(self.user)
+            mock_transformer_class.assert_called_once_with(user=self.user)
 
     def test_load_data_with_odoo_export(self):
         """Test data loading for Odoo export files"""
@@ -288,7 +291,9 @@ class TestDataProcessingPipeline(TestCase):
             self.assertIsNotNone(result)
             self.assertEqual(self.upload.processed_records, 10)
             self.assertEqual(self.upload.error_records, 0)
-            mock_loader_class.assert_called_once_with(self.user)
+            mock_loader_class.assert_called_once_with(
+                self.user, upload_instance=self.upload
+            )
 
     def test_load_data_with_recipes_data(self):
         """Test data loading for recipes data files"""
@@ -301,7 +306,9 @@ class TestDataProcessingPipeline(TestCase):
             "data_engineering.pipelines.initial_load_pipeline.RecipeDataLoader"
         ) as mock_loader_class:
             mock_loader = Mock()
-            mock_loader.load.return_value = {"recipe_data": {"created": 5}}
+            mock_loader.load.return_value = {
+                "recipe_data": {"created": 5, "updated": 2}
+            }
             mock_loader.errors = []
             mock_loader.created_count = 5
             mock_loader.updated_count = 2
@@ -312,9 +319,11 @@ class TestDataProcessingPipeline(TestCase):
             result = pipeline._load_data(transformed_data)
 
             self.assertIsNotNone(result)
-            self.assertEqual(self.upload.processed_records, 7)
+            self.assertEqual(self.upload.processed_records, 7)  # 5 created + 2 updated
             self.assertEqual(self.upload.error_records, 1)
-            mock_loader_class.assert_called_once_with(self.user)
+            mock_loader_class.assert_called_once_with(
+                self.user, upload_instance=self.upload
+            )
 
     def test_handle_success(self):
         """Test successful pipeline completion handling"""
@@ -323,8 +332,13 @@ class TestDataProcessingPipeline(TestCase):
             "product_data": {"created": 3, "updated": 2},
         }
 
+        quality_metrics = {
+            "products": {"quality_score": 85.0, "total_issues": 5},
+            "sales": {"quality_score": 90.0, "total_issues": 3},
+        }
+
         pipeline = DataProcessingPipeline(self.upload)
-        pipeline._handle_success(load_results)
+        pipeline._handle_success(load_results, quality_metrics)
 
         self.assertEqual(self.upload.status, "completed")
         self.assertIsNotNone(self.upload.end_processing_at)
@@ -387,6 +401,7 @@ class TestDataProcessingPipeline(TestCase):
                 mock_transformer.warnings = []
                 mock_transformer_class.return_value = mock_transformer
 
+                # NOTE: Consolidation no longer done in pipeline
                 with patch(
                     "data_engineering.pipelines.initial_load_pipeline.RestaurantDataLoader"
                 ) as mock_loader_class:

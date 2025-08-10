@@ -16,7 +16,8 @@ import pandas as pd
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from data_engineering.extractors.odoo_extractor import OdooExtractor, RecipeExtractor
+from data_engineering.extractors.odoo_extractor import OdooExtractor
+from data_engineering.extractors.recipe_extractor import RecipeExtractor
 
 # Configure logging
 logging.basicConfig(

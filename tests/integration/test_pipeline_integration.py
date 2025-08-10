@@ -98,6 +98,8 @@ class TestPipelineIntegration(TestCase):
                 mock_transformer_instance.errors = []
                 mock_transformer_instance.warnings = []
 
+                # NOTE: Consolidation no longer done in pipeline - skip this mock
+
                 with patch(
                     "data_engineering.pipelines.initial_load_pipeline.RestaurantDataLoader"
                 ) as mock_loader_class:

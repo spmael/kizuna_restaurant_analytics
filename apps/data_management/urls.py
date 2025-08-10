@@ -1,15 +1,17 @@
-from django.http import HttpResponse
 from django.urls import path
 
-
-def temporary_upload_view(request):
-    """Temporary upload view for testing."""
-    return HttpResponse("Upload functionality coming soon!")
-
+from . import views
 
 app_name = "data_management"
 
 urlpatterns = [
-    path("upload/", temporary_upload_view, name="upload"),
-    # TODO: Add more data management URLs
+    path("", views.DataUploadView.as_view(), name="upload"),
+    path("list/", views.DataUploadListView.as_view(), name="upload_list"),
+    path(
+        "detail/<uuid:pk>/", views.DataUploadDetailView.as_view(), name="upload_detail"
+    ),
+    path("progress/<uuid:upload_id>/", views.upload_progress, name="upload_progress"),
+    path("dashboard/", views.dashboard_stats, name="dashboard"),
+    path("quality/", views.data_quality_report, name="quality_report"),
+    path("admin-dashboard/", views.admin_dashboard, name="admin_dashboard"),
 ]

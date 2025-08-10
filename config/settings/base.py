@@ -168,6 +168,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Custom user model
 AUTH_USER_MODEL = "authentication.User"
 
+# Authentication settings
+LOGIN_URL = "/auth/login/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/auth/login/"
+
 # Celery settings
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://localhost:6379/0")
@@ -177,7 +182,7 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 
 # Celery beat settings
-CELERY_BEAT_SCHEDULER = {
+CELERY_BEAT_SCHEDULE = {
     "weekly-data-update": {
         "task": "apps.core.tasks.weekly_data_update",
         "schedule": crontab(hour=2, minute=0, day_of_week=1),
@@ -191,6 +196,24 @@ CELERY_BEAT_SCHEDULER = {
         "schedule": crontab(hour=1, minute=0),
     },
 }
+
+# Add to existing CELERY_BEAT_SCHEDULE
+CELERY_BEAT_SCHEDULE.update(
+    {
+        "cleanup-old-uploads": {
+            "task": "apps.data_management.tasks.cleanup_old_uploads",
+            "schedule": crontab(hour=0, minute=30, day_of_week=0),  # Weekly on Sunday
+        },
+        "generate-daily-summary": {
+            "task": "apps.data_management.tasks.generate_daily_summary",
+            "schedule": crontab(hour=1, minute=0),  # Daily at 1 AM
+        },
+        "data-quality-check": {
+            "task": "apps.data_management.tasks.validate_data_quality",
+            "schedule": crontab(hour=2, minute=0, day_of_week=1),  # Weekly on Monday
+        },
+    }
+)
 
 # CORS settings
 CORS_ALLOW_ALL_ORIGINS = True

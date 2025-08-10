@@ -1,0 +1,210 @@
+{% extends 'base/base.html' %}
+{% load static i18n crispy_forms_tags %}
+
+{% block title %}{% trans "Data Uploads" %} - Kizuna Analytics{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-0">{% trans "Data Uploads" %}</h1>
+                <p class="text-muted">{% trans "Track your data file uploads and processing status" %}</p>
+            </div>
+            <div>
+                <a href="{% url 'data_management:upload' %}" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> {% trans "Upload New File" %}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get">
+                    {% crispy filter_form %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="mb-0">{% trans "Upload History" %}</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if uploads %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>{% trans "File" %}</th>
+                                <th>{% trans "Type" %}</th>
+                                <th>{% trans "Status" %}</th>
+                                <th>{% trans "Progress" %}</th>
+                                <th>{% trans "Uploaded" %}</th>
+                                <th>{% trans "Actions" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for upload in uploads %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-file-excel text-success mr-2"></i>
+                                        <div>
+                                            <strong>{{ upload.original_filename }}</strong><br>
+                                            <small class="text-muted">{{ upload.file_size|filesizeformat }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-secondary">
+                                        {{ upload.get_file_type_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if upload.status == 'completed' %}
+                                        <span class="badge badge-success">
+                                            <i class="fas fa-check"></i> {% trans "Completed" %}
+                                        </span>
+                                    {% elif upload.status == 'processing' %}
+                                        <span class="badge badge-info" 
+                                              hx-get="{% url 'data_management:upload_progress' upload.id %}"
+                                              hx-trigger="every 2s">
+                                            <i class="fas fa-spinner fa-spin"></i> {% trans "Processing" %}
+                                        </span>
+                                    {% elif upload.status == 'failed' %}
+                                        <span class="badge badge-danger">
+                                            <i class="fas fa-times"></i> {% trans "Failed" %}
+                                        </span>
+                                    {% elif upload.status == 'pending' %}
+                                        <span class="badge badge-warning">
+                                            <i class="fas fa-clock"></i> {% trans "Pending" %}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if upload.status == 'completed' %}
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-success" style="width: 100%">
+                                                100%
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">
+                                            {{ upload.processed_rows }}/{{ upload.total_rows }} {% trans "rows" %}
+                                            {% if upload.error_rows %}
+                                                ({{ upload.error_rows }} {% trans "errors" %})
+                                            {% endif %}
+                                        </small>
+                                    {% elif upload.status == 'processing' %}
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                                 style="width: {{ upload.progress_percentage }}%">
+                                                {{ upload.progress_percentage|floatformat:0 }}%
+                                            </div>
+                                        </div>
+                                    {% elif upload.status == 'failed' %}
+                                        <span class="text-danger">
+                                            <i class="fas fa-exclamation-triangle"></i> {% trans "Processing failed" %}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">{% trans "Waiting..." %}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div>{{ upload.created_at|date:"d/m/Y H:i" }}</div>
+                                    <small class="text-muted">{{ upload.uploaded_by.get_full_name }}</small>
+                                </td>
+                                <td>
+                                    <a href="{% url 'data_management:upload_detail' upload.id %}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> {% trans "View" %}
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <div class="card-footer">
+                    <nav aria-label="{% trans 'Pagination' %}">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                                        {% trans "First" %}
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                                        &laquo; {% trans "Previous" %}
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    {{ page_obj.number }} {% trans "of" %} {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                                        {% trans "Next" %} &raquo;
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                                        {% trans "Last" %}
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+                
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">{% trans "No uploads yet" %}</h5>
+                    <p class="text-muted">{% trans "Upload your first data file to get started." %}</p>
+                    <a href="{% url 'data_management:upload' %}" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> {% trans "Upload File" %}
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh processing uploads
+document.addEventListener('DOMContentLoaded', function() {
+    const processingBadges = document.querySelectorAll('.badge:contains("Processing")');
+    
+    if (processingBadges.length > 0) {
+        // Refresh the entire page every 30 seconds if there are processing uploads
+        setTimeout(() => {
+            location.reload();
+        }, 30000);
+    }
+});
+</script>
+{% endblock %}

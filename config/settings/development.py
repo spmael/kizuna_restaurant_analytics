@@ -10,6 +10,10 @@ os.environ.setdefault("DEBUG", "True")
 os.environ.setdefault("CELERY_BROKER_URL", "redis://localhost:6379/0")
 os.environ.setdefault("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
 
+# Run Celery tasks eagerly in development to avoid needing Redis
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+
 # Debug toolbar settings
 INSTALLED_APPS += ["debug_toolbar"]  # noqa: F405
 MIDDLEWARE = [

@@ -1,0 +1,109 @@
+{% extends 'restaurant_data/base.html' %}
+{% load static i18n %}
+
+{% block page_title %}{% trans "Delete Product" %}{% endblock %}
+
+{% block restaurant_data_content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'restaurant_data:product_list' %}">
+                        <i class="fas fa-box me-1"></i>{% trans "Products" %}
+                    </a>
+                </li>
+                <li class="breadcrumb-item">
+                    <a href="{% url 'restaurant_data:product_detail' object.id %}">{{ object.name }}</a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">{% trans "Delete" %}</li>
+            </ol>
+        </nav>
+
+        <!-- Delete Confirmation -->
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>{% trans "Confirm Deletion" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-trash fa-3x text-danger mb-3"></i>
+                    <h4>{% trans "Are you sure you want to delete this product?" %}</h4>
+                    <p class="text-muted">
+                        {% trans "This action cannot be undone. All associated data will be permanently removed." %}
+                    </p>
+                </div>
+
+                <!-- Product Information -->
+                <div class="alert alert-warning">
+                    <h6 class="alert-heading">{% trans "Product Details" %}</h6>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">{% trans "Name" %}</dt>
+                        <dd class="col-sm-8">{{ object.name }}</dd>
+                        
+                        <dt class="col-sm-4">{% trans "Category" %}</dt>
+                        <dd class="col-sm-8">{{ object.purchase_category.name }}</dd>
+                        
+                        <dt class="col-sm-4">{% trans "Current Stock" %}</dt>
+                        <dd class="col-sm-8">{{ object.current_stock|floatformat:1 }} {{ object.unit_of_measure.name }}</dd>
+                        
+                        <dt class="col-sm-4">{% trans "Stock Value" %}</dt>
+                        <dd class="col-sm-8">{{ object.stock_value|floatformat:2 }}</dd>
+                    </dl>
+                </div>
+
+                <!-- Warning about associated data -->
+                <div class="alert alert-info">
+                    <h6 class="alert-heading">{% trans "Associated Data" %}</h6>
+                    <p class="mb-0">
+                        {% trans "This product has the following associated data that will also be deleted:" %}
+                    </p>
+                    <ul class="mb-0 mt-2">
+                        <li>{% trans "Purchase records" %} ({{ object.purchases.count }})</li>
+                        <li>{% trans "Sales records" %} ({{ object.sales.count }})</li>
+                        <li>{% trans "Recipe ingredients" %} ({{ object.recipes.count }})</li>
+                    </ul>
+                </div>
+
+                <!-- Confirmation Form -->
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger btn-lg">
+                            <i class="fas fa-trash me-2"></i>{% trans "Yes, Delete Product" %}
+                        </button>
+                        <a href="{% url 'restaurant_data:product_detail' object.id %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>{% trans "Cancel" %}
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Help Section -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>{% trans "What happens when you delete a product?" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-exclamation-triangle text-warning me-2"></i>{% trans "The product will be permanently removed from the system" %}</li>
+                    <li><i class="fas fa-exclamation-triangle text-warning me-2"></i>{% trans "All purchase and sales records for this product will be deleted" %}</li>
+                    <li><i class="fas fa-exclamation-triangle text-warning me-2"></i>{% trans "Any recipes using this product as an ingredient will be affected" %}</li>
+                    <li><i class="fas fa-exclamation-triangle text-warning me-2"></i>{% trans "This action cannot be undone" %}</li>
+                </ul>
+                
+                <div class="alert alert-light mt-3">
+                    <strong>{% trans "Alternative:" %}</strong> 
+                    {% trans "Consider deactivating the product instead of deleting it to preserve historical data." %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

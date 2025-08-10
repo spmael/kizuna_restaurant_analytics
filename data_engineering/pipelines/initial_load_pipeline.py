@@ -5,9 +5,11 @@ from django.utils import timezone
 
 from apps.data_management.models import DataUpload, ProcessingError
 
-from ..extractors.odoo_extractor import OdooExtractor, RecipeExtractor
+from ..extractors.odoo_extractor import OdooExtractor
+from ..extractors.recipe_extractor import RecipeExtractor
 from ..loaders.database_loader import RecipeDataLoader, RestaurantDataLoader
 from ..transformers.odoo_data_cleaner import OdooDataTransformer, RecipeDataTransformer
+from ..utils.data_quality_analyzer import DataQualityAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -23,36 +25,55 @@ class DataProcessingPipeline:
         self.transformer = None
         self.loader = None
         self.stats = {}
+        self.quality_analyzer = DataQualityAnalyzer()
 
     def process(self) -> bool:
         """Run the complete ETL pipeline"""
 
         try:
-            # Update upload status to processing
+            # Initialize processing
             self.upload.status = "processing"
             self.upload.start_processing_at = timezone.now()
+            self.upload.total_stages = 5  # Extract, Transform, Load, Analytics, Quality
+            self.upload.completed_stages = 0
             self.upload.save()
 
-            # Step 1: Extract data
+            # Stage 1: Extract data
+            self.upload.update_stage("extracting", 0)
             extracted_data = self._extract_data()
             if not extracted_data:
                 self._handle_error("Data extraction failed")
                 return False
+            self.upload.complete_stage()
 
-            # Step 2: Transform data
+            # Stage 2: Transform data
+            self.upload.update_stage("transforming", 0)
             transformed_data = self._transform_data(extracted_data)
             if not transformed_data:
                 self._handle_error("Data transformation failed")
                 return False
+            self.upload.complete_stage()
 
-            # Step 3: Load data
+            # Stage 3: Analyze data quality (after transformation)
+            self.upload.update_stage("analyzing_quality", 0)
+            quality_metrics = self._analyze_data_quality(transformed_data)
+            self.upload.complete_stage()
+
+            # Stage 4: Load data
+            self.upload.update_stage("loading", 0)
             load_results = self._load_data(transformed_data)
             if not load_results:
                 self._handle_error("Data loading failed")
                 return False
+            self.upload.complete_stage()
+
+            # Stage 5: Generate analytics
+            self.upload.update_stage("generating_analytics", 0)
+            self._generate_analytics()
+            self.upload.complete_stage()
 
             # Success
-            self._handle_success(load_results)
+            self._handle_success(load_results, quality_metrics)
 
             return True
         except Exception as e:
@@ -97,6 +118,7 @@ class DataProcessingPipeline:
         """Transform extracted data"""
 
         try:
+            # Step 1: Initial data cleaning
             if self.upload.file_type == "odoo_export":
                 self.transformer = OdooDataTransformer(user=self.user)
                 transformed_data = self.transformer.transform(extracted_data)
@@ -126,19 +148,23 @@ class DataProcessingPipeline:
 
         try:
             if self.upload.file_type == "odoo_export":
-                self.loader = RestaurantDataLoader(self.user)
+                self.loader = RestaurantDataLoader(
+                    self.user, upload_instance=self.upload
+                )
                 load_results = self.loader.load(transformed_data)
             elif self.upload.file_type == "recipes_data":
-                self.loader = RecipeDataLoader(self.user)
+                self.loader = RecipeDataLoader(self.user, upload_instance=self.upload)
                 load_results = self.loader.load(transformed_data)
 
             for error in self.loader.errors:
                 self._log_processing_error(0, "loading", error)
 
-            # Update upload statistics
-            self.upload.processed_records = (
-                self.loader.created_count + self.loader.updated_count
-            )
+            # Update upload statistics - count all records processed
+            total_processed = 0
+            for data_type, stats in load_results.items():
+                total_processed += stats.get("created", 0) + stats.get("updated", 0)
+
+            self.upload.processed_records = total_processed
             self.upload.error_records = self.loader.error_count
             self.upload.save()
 
@@ -151,17 +177,22 @@ class DataProcessingPipeline:
             logger.error(f"Error loading data: {str(e)}")
             return None
 
-    def _handle_success(self, load_results: Dict):
+    def _handle_success(self, load_results: Dict, quality_metrics: Dict):
         """Handle successful data load"""
 
         self.upload.status = "completed"
+        self.upload.current_stage = "completed"
         self.upload.end_processing_at = timezone.now()
+
+        # Store detailed sheet statistics
+        self.upload.sheet_statistics = load_results
 
         # build processing log
         log_lines = [
             f"Processing completed at {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}",
             f"Total records processed: {self.upload.processed_records}",
             f"Total errors: {self.upload.error_records}",
+            f"Overall progress: {self.upload.get_overall_progress()}%",
             "Results by data type:",
         ]
 
@@ -170,15 +201,58 @@ class DataProcessingPipeline:
             for key, value in stats.items():
                 log_lines.append(f"  {key}: {value}")
 
+        # Add data quality summary
+        if quality_metrics:
+            log_lines.append("\nData Quality Summary:")
+            quality_summary = self.upload.get_data_quality_summary()
+            if quality_summary:
+                log_lines.append(
+                    f"  Overall Quality Score: {quality_summary.get('overall_quality_score', 0)}%"
+                )
+                log_lines.append(
+                    f"  Sheets Analyzed: {quality_summary.get('sheets_analyzed', 0)}"
+                )
+                log_lines.append(
+                    f"  Total Issues: {quality_summary.get('total_issues', 0)}"
+                )
+                log_lines.append(
+                    f"  Critical Issues: {quality_summary.get('critical_issues', 0)}"
+                )
+                log_lines.append(f"  Warnings: {quality_summary.get('warnings', 0)}")
+
         self.upload.processing_log = "\n".join(log_lines)
         self.upload.save()
 
         logger.info(f"ETL pipeline completed successfully for upload {self.upload.id}")
 
+    def _analyze_data_quality(self, extracted_data: Dict) -> Dict:
+        """Analyze data quality for all extracted sheets"""
+        logger.info("Starting data quality analysis...")
+
+        quality_metrics = self.quality_analyzer.analyze_all_sheets(extracted_data)
+
+        # Store quality metrics in upload
+        self.upload.data_quality_metrics = quality_metrics
+        self.upload.save()
+
+        logger.info(
+            f"Data quality analysis completed for {len(quality_metrics)} sheets"
+        )
+        return quality_metrics
+
+    def _generate_analytics(self):
+        """Generate consolidated analytics data"""
+        logger.info("Generating consolidated analytics...")
+
+        # This is handled by the loader's consolidated data generation
+        # Just log the stage completion
+        logger.info("Analytics generation completed")
+
     def _handle_error(self, error_msg: str):
         """Handle processing errors"""
 
         self.upload.status = "failed"
+        self.upload.current_stage = "failed"
         self.upload.end_processing_at = timezone.now()
 
         # build error log

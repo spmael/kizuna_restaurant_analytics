@@ -1,0 +1,75 @@
+{% extends 'base/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Data Management - Stats" %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1 class="h3 mb-4">{% trans "Dashboard Statistics" %}</h1>
+
+  <div class="row g-3">
+    <div class="col-md-3">
+      <div class="card">
+        <div class="card-body text-center">
+          <div class="display-6">{{ stats.total_uploads }}</div>
+          <div class="text-muted">{% trans "Total Uploads" %}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card">
+        <div class="card-body text-center">
+          <div class="display-6">{{ stats.pending_uploads }}</div>
+          <div class="text-muted">{% trans "Pending" %}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card">
+        <div class="card-body text-center">
+          <div class="display-6">{{ stats.processing_uploads }}</div>
+          <div class="text-muted">{% trans "Processing" %}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card">
+        <div class="card-body text-center">
+          <div class="display-6">{{ stats.completed_uploads }}</div>
+          <div class="text-muted">{% trans "Completed" %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="h5 mt-4">{% trans "Recent Uploads" %}</h2>
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            <th>{% trans "File" %}</th>
+            <th>{% trans "Type" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Created" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in recent_uploads %}
+          <tr>
+            <td>{{ u.file_name }}</td>
+            <td>{{ u.file_type }}</td>
+            <td>{{ u.status }}</td>
+            <td>{{ u.created_at }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="text-center text-muted py-4">{% trans "No uploads yet." %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

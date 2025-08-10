@@ -1,0 +1,148 @@
+{% extends 'restaurant_data/base.html' %}
+{% load static i18n crispy_forms_tags %}
+
+{% block page_title %}
+    {% if object %}{% trans "Edit Product" %}{% else %}{% trans "Add Product" %}{% endif %}
+{% endblock %}
+
+{% block restaurant_data_content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'restaurant_data:product_list' %}">
+                        <i class="fas fa-box me-1"></i>{% trans "Products" %}
+                    </a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">
+                    {% if object %}{% trans "Edit Product" %}{% else %}{% trans "Add Product" %}{% endif %}
+                </li>
+            </ol>
+        </nav>
+
+        <!-- Form Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-1">
+                    {% if object %}
+                        <i class="fas fa-edit me-2"></i>{% trans "Edit Product" %}
+                    {% else %}
+                        <i class="fas fa-plus me-2"></i>{% trans "Add New Product" %}
+                    {% endif %}
+                </h1>
+                <p class="text-muted mb-0">
+                    {% if object %}
+                        {% trans "Update the product information below." %}
+                    {% else %}
+                        {% trans "Fill in the product information below to create a new product." %}
+                    {% endif %}
+                </p>
+            </div>
+            <a href="{% url 'restaurant_data:product_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>{% trans "Back to List" %}
+            </a>
+        </div>
+
+        <!-- Product Form -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    {% if object %}{% trans "Product Information" %}{% else %}{% trans "New Product Information" %}{% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            <ul class="mb-0">
+                                {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    {% crispy form %}
+                </form>
+            </div>
+        </div>
+
+        <!-- Help Section -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-question-circle me-2"></i>{% trans "Help & Tips" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>{% trans "Product Information" %}</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success me-2"></i>{% trans "Name is required and should be unique" %}</li>
+                            <li><i class="fas fa-check text-success me-2"></i>{% trans "French and English names are optional" %}</li>
+                            <li><i class="fas fa-check text-success me-2"></i>{% trans "Select appropriate categories for better organization" %}</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>{% trans "Pricing & Stock" %}</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success me-2"></i>{% trans "Selling price should be higher than cost per unit" %}</li>
+                            <li><i class="fas fa-check text-success me-2"></i>{% trans "Stock quantity helps track inventory levels" %}</li>
+                            <li><i class="fas fa-check text-success me-2"></i>{% trans "Unit of measure ensures consistent tracking" %}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Auto-calculate stock value when cost or stock changes
+    $('#id_current_cost_per_unit, #id_current_stock').on('input', function() {
+        var cost = parseFloat($('#id_current_cost_per_unit').val()) || 0;
+        var stock = parseFloat($('#id_current_stock').val()) || 0;
+        var stockValue = cost * stock;
+        
+        // Update stock value display if it exists
+        if ($('#stock-value-display').length) {
+            $('#stock-value-display').text(stockValue.toFixed(2));
+        }
+    });
+    
+    // Form validation
+    $('form').on('submit', function(e) {
+        var sellingPrice = parseFloat($('#id_current_selling_price').val()) || 0;
+        var costPerUnit = parseFloat($('#id_current_cost_per_unit').val()) || 0;
+        
+        if (sellingPrice <= 0) {
+            alert('{% trans "Selling price must be greater than 0." %}');
+            e.preventDefault();
+            return false;
+        }
+        
+        if (costPerUnit <= 0) {
+            alert('{% trans "Cost per unit must be greater than 0." %}');
+            e.preventDefault();
+            return false;
+        }
+        
+        if (sellingPrice < costPerUnit) {
+            if (!confirm('{% trans "Selling price is lower than cost per unit. Are you sure you want to continue?" %}')) {
+                e.preventDefault();
+                return false;
+            }
+        }
+    });
+});
+</script>
+{% endblock %} 

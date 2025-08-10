@@ -98,8 +98,7 @@ class OdooExtractor(BaseExtractor):
         # Remove completely empty rows and columns
         df = df.dropna(how="all").dropna(axis=1, how="all")
 
-        # Standardize column names
-        df.columns = df.columns.str.lower().str.replace(" ", "_")
+        # Keep original column names for proper mapping
 
         # Remove leading and trailing whitespace from string columns
         for col in df.select_dtypes(include=["object"]).columns:
@@ -111,67 +110,5 @@ class OdooExtractor(BaseExtractor):
             f"Cleaned {sheet_type} sheet with {df.shape[0]} rows and {df.shape[1]} columns"
         )
         logger.info(f"Columns: {list(df.columns)}")
-
-        return df
-
-
-class RecipeExtractor(BaseExtractor):
-    """Extract recipe data from excel file"""
-
-    def extract(self) -> Dict[str, pd.DataFrame]:
-        """Extract recipe data from excel file"""
-
-        if not self.validate_file():
-            return {}
-
-        try:
-            # Try to read the file as single sheet
-            df = pd.read_excel(
-                self.file_path,
-                sheet_name=None,
-                na_values=["", "None", "NULL", "null", "#N/A"],
-                keep_default_na=True,
-            )
-
-            # Clean the data
-            df = self._clean_recipe_data(df)
-
-            result = {"recipes": df}
-            self.log_extractor_stats(result)
-            return result
-
-        except Exception:
-            # Try reading all sheets in case it's a multi-sheet file
-            try:
-                excel_data = pd.read_excel(self.file_path, sheet_name=None)
-                cleaned_data = {}
-
-                for sheet_name, sheet_df in excel_data.items():
-                    if not sheet_df.empty:
-                        cleaned_data[f"recipe_{sheet_name}"] = self._clean_recipe_data(
-                            sheet_df
-                        )
-
-                self.log_extractor_stats(cleaned_data)
-                return cleaned_data
-            except Exception as e:
-                error_msg = f"Error extracting recipe data from Excel file: {str(e)}"
-                self.errors.append(error_msg)
-                logger.error(error_msg)
-                return {}
-
-    def _clean_recipe_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean recipe data from excel file"""
-
-        # Remove completely empty rows and columns
-        df = df.dropna(how="all").dropna(axis=1, how="all")
-
-        # Standardize column names
-        df.columns = df.columns.str.lower().str.replace(" ", "_")
-
-        # clean string columns
-        for col in df.select_dtypes(include=["object"]).columns:
-            df[col] = df[col].astype(str).str.strip()
-            df[col] = df[col].replace("nan", pd.NA)
 
         return df

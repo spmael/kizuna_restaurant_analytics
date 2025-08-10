@@ -2,9 +2,10 @@
 Test fixtures and sample data for the Kizuna Restaurant Analytics project.
 """
 
-import pandas as pd
-import tempfile
 import os
+import tempfile
+
+import pandas as pd
 from django.contrib.auth import get_user_model
 
 User = get_user_model()

@@ -1,0 +1,262 @@
+{% extends 'base/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Upload Progress" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-upload"></i>
+                        {% trans "Upload Progress" %}: {{ upload.original_file_name }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>{% trans "Upload Status" %}</h5>
+                            <p>
+                                {% if upload.status == 'pending' %}
+                                    <span class="badge badge-warning">
+                                        <i class="fas fa-clock"></i> {% trans "Pending" %}
+                                    </span>
+                                {% elif upload.status == 'processing' %}
+                                    <span class="badge badge-info">
+                                        <i class="fas fa-spinner fa-spin"></i> {% trans "Processing" %}
+                                    </span>
+                                    <br>
+                                    <small class="text-muted">
+                                        <strong>{% trans "Current Stage" %}:</strong> {{ upload.get_stage_display_name }}
+                                        {% if upload.stage_progress > 0 %}
+                                            ({{ upload.stage_progress }}%)
+                                        {% endif %}
+                                    </small>
+                                    <br>
+                                    <small class="text-muted">
+                                        <strong>{% trans "Overall Progress" %}:</strong> {{ upload.get_overall_progress }}% 
+                                        ({{ upload.completed_stages }}/{{ upload.total_stages }} {% trans "stages" %})
+                                    </small>
+                                {% elif upload.status == 'completed' %}
+                                    <span class="badge badge-success">
+                                        <i class="fas fa-check"></i> {% trans "Completed" %}
+                                    </span>
+                                {% elif upload.status == 'failed' %}
+                                    <span class="badge badge-danger">
+                                        <i class="fas fa-times"></i> {% trans "Failed" %}
+                                    </span>
+                                {% endif %}
+                            </p>
+
+                            <h5>{% trans "File Information" %}</h5>
+                            <ul class="list-unstyled">
+                                <li><strong>{% trans "File Type" %}:</strong> {{ upload.get_file_type_display }}</li>
+                                <li><strong>{% trans "Upload Date" %}:</strong> {{ upload.uploaded_at|date:"Y-m-d H:i:s" }}</li>
+                                <li><strong>{% trans "File Size" %}:</strong> {{ upload.file.size|filesizeformat }}</li>
+                            </ul>
+                        </div>
+
+                        <div class="col-md-6">
+                            <h5>{% trans "Processing Statistics" %}</h5>
+                            <ul class="list-unstyled">
+                                <li><strong>{% trans "Total Records" %}:</strong> {{ upload.total_records|default:"--" }}</li>
+                                <li><strong>{% trans "Processed Records" %}:</strong> {{ upload.processed_records|default:"--" }}</li>
+                                <li><strong>{% trans "Error Records" %}:</strong> {{ upload.error_records|default:"--" }}</li>
+                                {% if upload.start_processing_at %}
+                                <li><strong>{% trans "Processing Started" %}:</strong> {{ upload.start_processing_at|date:"Y-m-d H:i:s" }}</li>
+                                {% endif %}
+                                {% if upload.end_processing_at %}
+                                <li><strong>{% trans "Processing Completed" %}:</strong> {{ upload.end_processing_at|date:"Y-m-d H:i:s" }}</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+
+                    {% if upload.status == 'processing' %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>{% trans "Processing in Background" %}</strong><br>
+                                {% trans "Your file is being processed in the background. You can safely navigate to other pages - the processing will continue automatically. This page will auto-refresh every 5 seconds to show progress." %}
+                            </div>
+                            <div class="progress mb-3">
+                                <div class="progress-bar" role="progressbar" 
+                                     style="width: {{ upload.get_overall_progress }}%"
+                                     aria-valuenow="{{ upload.get_overall_progress }}" 
+                                     aria-valuemin="0" aria-valuemax="100">
+                                    {{ upload.get_overall_progress }}% {% trans "Complete" %}
+                                </div>
+                            </div>
+                            
+                            <!-- Stage Progress -->
+                            <div class="mt-3">
+                                <h6>{% trans "Processing Stages" %}:</h6>
+                                <div class="list-group">
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>
+                                            <i class="fas fa-file-import"></i> {% trans "Extracting data from file" %}
+                                        </span>
+                                        {% if upload.completed_stages >= 1 %}
+                                            <span class="badge badge-success"><i class="fas fa-check"></i></span>
+                                        {% elif upload.current_stage == "extracting" %}
+                                            <span class="badge badge-info"><i class="fas fa-spinner fa-spin"></i></span>
+                                        {% else %}
+                                            <span class="badge badge-secondary"><i class="fas fa-clock"></i></span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>
+                                            <i class="fas fa-chart-line"></i> {% trans "Analyzing data quality" %}
+                                        </span>
+                                        {% if upload.completed_stages >= 2 %}
+                                            <span class="badge badge-success"><i class="fas fa-check"></i></span>
+                                        {% elif upload.current_stage == "analyzing_quality" %}
+                                            <span class="badge badge-info"><i class="fas fa-spinner fa-spin"></i></span>
+                                        {% else %}
+                                            <span class="badge badge-secondary"><i class="fas fa-clock"></i></span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>
+                                            <i class="fas fa-cogs"></i> {% trans "Transforming and cleaning data" %}
+                                        </span>
+                                        {% if upload.completed_stages >= 3 %}
+                                            <span class="badge badge-success"><i class="fas fa-check"></i></span>
+                                        {% elif upload.current_stage == "transforming" %}
+                                            <span class="badge badge-info"><i class="fas fa-spinner fa-spin"></i></span>
+                                        {% else %}
+                                            <span class="badge badge-secondary"><i class="fas fa-clock"></i></span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>
+                                            <i class="fas fa-database"></i> {% trans "Loading data to database" %}
+                                        </span>
+                                        {% if upload.completed_stages >= 4 %}
+                                            <span class="badge badge-success"><i class="fas fa-check"></i></span>
+                                        {% elif upload.current_stage == "loading" %}
+                                            <span class="badge badge-info"><i class="fas fa-spinner fa-spin"></i></span>
+                                        {% else %}
+                                            <span class="badge badge-secondary"><i class="fas fa-clock"></i></span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>
+                                            <i class="fas fa-chart-bar"></i> {% trans "Generating consolidated analytics" %}
+                                        </span>
+                                        {% if upload.completed_stages >= 5 %}
+                                            <span class="badge badge-success"><i class="fas fa-check"></i></span>
+                                        {% elif upload.current_stage == "generating_analytics" %}
+                                            <span class="badge badge-info"><i class="fas fa-spinner fa-spin"></i></span>
+                                        {% else %}
+                                            <span class="badge badge-secondary"><i class="fas fa-clock"></i></span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if upload.data_quality_metrics %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h5>{% trans "Data Quality Summary" %}</h5>
+                            {% with quality_summary=upload.get_data_quality_summary %}
+                                {% if quality_summary %}
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-3">
+                                                    <div class="text-center">
+                                                        <h4 class="text-{% if quality_summary.overall_quality_score >= 80 %}success{% elif quality_summary.overall_quality_score >= 60 %}warning{% else %}danger{% endif %}">
+                                                            {{ quality_summary.overall_quality_score }}%
+                                                        </h4>
+                                                        <small class="text-muted">{% trans "Overall Quality" %}</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-9">
+                                                    <div class="row">
+                                                        <div class="col-md-3">
+                                                            <strong>{{ quality_summary.sheets_analyzed }}</strong><br>
+                                                            <small class="text-muted">{% trans "Sheets Analyzed" %}</small>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <strong class="text-danger">{{ quality_summary.total_issues }}</strong><br>
+                                                            <small class="text-muted">{% trans "Total Issues" %}</small>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <strong class="text-danger">{{ quality_summary.critical_issues }}</strong><br>
+                                                            <small class="text-muted">{% trans "Critical Issues" %}</small>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <strong class="text-warning">{{ quality_summary.warnings }}</strong><br>
+                                                            <small class="text-muted">{% trans "Warnings" %}</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endwith %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if upload.processing_log %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h5>{% trans "Processing Log" %}</h5>
+                            <pre class="bg-light p-3" style="max-height: 300px; overflow-y: auto;">{{ upload.processing_log }}</pre>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <a href="{% url 'data_management:upload_detail' upload.id %}" class="btn btn-primary">
+                                <i class="fas fa-eye"></i>
+                                {% trans "View Details" %}
+                            </a>
+                            <a href="{% url 'data_management:upload_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-list"></i>
+                                {% trans "Back to Uploads" %}
+                            </a>
+                            {% if upload.status == 'processing' %}
+                            <button class="btn btn-info" onclick="window.location.reload()">
+                                <i class="fas fa-sync"></i>
+                                {% trans "Refresh" %}
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if upload.status == 'processing' %}
+<script>
+// Auto-refresh every 5 seconds for processing uploads
+setTimeout(function() {
+    window.location.reload();
+}, 5000);
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,435 @@
+{% extends 'base/base.html' %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-chart-bar"></i>
+                        {{ title }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <!-- Overall Quality Summary -->
+                    {% if quality_stats.overall_quality_score is not None %}
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h4 class="card-title">{% trans "Overall Data Quality Score" %}</h4>
+                                    <div class="quality-score-display">
+                                        <span class="quality-score-number">{{ quality_stats.overall_quality_score }}</span>
+                                        <span class="quality-score-max">/ 100</span>
+                                    </div>
+                                    <div class="quality-score-bar mt-3">
+                                        <div class="progress" style="height: 25px;">
+                                            <div class="progress-bar 
+                                                {% if quality_stats.overall_quality_score >= 90 %}bg-success
+                                                {% elif quality_stats.overall_quality_score >= 70 %}bg-warning
+                                                {% else %}bg-danger{% endif %}" 
+                                                role="progressbar" 
+                                                style="width: {{ quality_stats.overall_quality_score }}%"
+                                                aria-valuenow="{{ quality_stats.overall_quality_score }}" 
+                                                aria-valuemin="0" 
+                                                aria-valuemax="100">
+                                                {{ quality_stats.overall_quality_score }}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Quality Metrics Summary -->
+                    {% if quality_stats.sheets_analyzed %}
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-info">
+                                    <i class="fas fa-file-alt"></i>
+                                </span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">{% trans "Sheets Analyzed" %}</span>
+                                    <span class="info-box-number">{{ quality_stats.sheets_analyzed }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">{% trans "Total Issues" %}</span>
+                                    <span class="info-box-number">{{ quality_stats.total_issues }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-danger">
+                                    <i class="fas fa-times-circle"></i>
+                                </span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">{% trans "Critical Issues" %}</span>
+                                    <span class="info-box-number">{{ quality_stats.critical_issues }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-warning">
+                                    <i class="fas fa-exclamation"></i>
+                                </span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">{% trans "Warnings" %}</span>
+                                    <span class="info-box-number">{{ quality_stats.warnings }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Per-Sheet Quality Details -->
+                    {% if quality_stats.sheet_details %}
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>{% trans "Per-Sheet Quality Analysis" %}</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>{% trans "Sheet Type" %}</th>
+                                                    <th>{% trans "Quality Score" %}</th>
+                                                    <th>{% trans "Records" %}</th>
+                                                    <th>{% trans "Valid" %}</th>
+                                                    <th>{% trans "Invalid" %}</th>
+                                                    <th>{% trans "Completeness" %}</th>
+                                                    <th>{% trans "Accuracy" %}</th>
+                                                    <th>{% trans "Consistency" %}</th>
+                                                    <th>{% trans "Issues" %}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for sheet_type, details in quality_stats.sheet_details.items %}
+                                                <tr>
+                                                    <td>
+                                                        <strong>{{ sheet_type|title }}</strong>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge 
+                                                            {% if details.quality_score >= 90 %}badge-success
+                                                            {% elif details.quality_score >= 70 %}badge-warning
+                                                            {% else %}badge-danger{% endif %}">
+                                                            {{ details.quality_score }}%
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ details.record_count }}</td>
+                                                    <td class="text-success">{{ details.valid_records }}</td>
+                                                    <td class="text-danger">{{ details.invalid_records }}</td>
+                                                    <td>{{ details.completeness }}%</td>
+                                                    <td>{{ details.accuracy }}%</td>
+                                                    <td>{{ details.consistency }}%</td>
+                                                    <td>
+                                                        {% if details.issues %}
+                                                        <button type="button" class="btn btn-sm btn-outline-info" 
+                                                                data-toggle="modal" 
+                                                                data-target="#issuesModal{{ forloop.counter }}">
+                                                            {{ details.issues|length }} {% trans "issues" %}
+                                                        </button>
+                                                        {% else %}
+                                                        <span class="text-success">{% trans "No issues" %}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Issues Modals -->
+                    {% for sheet_type, details in quality_stats.sheet_details.items %}
+                    {% if details.issues %}
+                    <div class="modal fade" id="issuesModal{{ forloop.counter }}" tabindex="-1" role="dialog">
+                        <div class="modal-dialog modal-lg" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">{% trans "Issues for" %} {{ sheet_type|title }}</h5>
+                                    <button type="button" class="close" data-dismiss="modal">
+                                        <span>&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <ul class="list-group">
+                                        {% for issue in details.issues %}
+                                        <li class="list-group-item">{{ issue }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">{% trans "Close" %}</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                    {% endif %}
+
+                    <!-- Legacy Statistics (if available) -->
+                    {% if quality_stats.uploads %}
+                    <div class="row mt-4">
+                        <!-- Upload Statistics -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>{% trans "Upload Statistics" %}</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <div class="description-block">
+                                                <h5 class="description-header">{{ quality_stats.uploads.total }}</h5>
+                                                <span class="description-text">{% trans "Total Uploads" %}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="description-block">
+                                                <h5 class="description-header">{{ quality_stats.uploads.completed }}</h5>
+                                                <span class="description-text">{% trans "Completed" %}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <div class="description-block">
+                                                <h5 class="description-header">{{ quality_stats.uploads.failed }}</h5>
+                                                <span class="description-text">{% trans "Failed" %}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="description-block">
+                                                <h5 class="description-header">{{ quality_stats.uploads.processing }}</h5>
+                                                <span class="description-text">{% trans "Processing" %}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Data Quality -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>{% trans "Data Quality" %}</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <div class="description-block">
+                                                <h5 class="description-header">{{ quality_stats.errors.total }}</h5>
+                                                <span class="description-text">{% trans "Total Errors" %}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="description-block">
+                                                <h5 class="description-header">{{ quality_stats.errors.recent }}</h5>
+                                                <span class="description-text">{% trans "Recent Errors" %}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <!-- Product Statistics -->
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>{% trans "Products" %}</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="description-block">
+                                        <h5 class="description-header">{{ quality_stats.products.total }}</h5>
+                                        <span class="description-text">{% trans "Total Products" %}</span>
+                                    </div>
+                                    <div class="description-block">
+                                        <h5 class="description-header">{{ quality_stats.products.with_purchases }}</h5>
+                                        <span class="description-text">{% trans "With Purchases" %}</span>
+                                    </div>
+                                    <div class="description-block">
+                                        <h5 class="description-header">{{ quality_stats.products.with_sales }}</h5>
+                                        <span class="description-text">{% trans "With Sales" %}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recipe Statistics -->
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>{% trans "Recipes" %}</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="description-block">
+                                        <h5 class="description-header">{{ quality_stats.recipes.total }}</h5>
+                                        <span class="description-text">{% trans "Total Recipes" %}</span>
+                                    </div>
+                                    <div class="description-block">
+                                        <h5 class="description-header">{{ quality_stats.recipes.with_ingredients }}</h5>
+                                        <span class="description-text">{% trans "With Ingredients" %}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Transaction Statistics -->
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>{% trans "Transactions" %}</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="description-block">
+                                        <h5 class="description-header">{{ quality_stats.purchases.total }}</h5>
+                                        <span class="description-text">{% trans "Total Purchases" %}</span>
+                                    </div>
+                                    <div class="description-block">
+                                        <h5 class="description-header">{{ quality_stats.sales.total }}</h5>
+                                        <span class="description-text">{% trans "Total Sales" %}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Actions -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>{% trans "Actions" %}</h5>
+                                </div>
+                                <div class="card-body">
+                                    <a href="{% url 'data_management:upload_list' %}" class="btn btn-primary">
+                                        <i class="fas fa-list"></i>
+                                        {% trans "View All Uploads" %}
+                                    </a>
+                                    <a href="{% url 'data_management:upload' %}" class="btn btn-success">
+                                        <i class="fas fa-upload"></i>
+                                        {% trans "Upload New Data" %}
+                                    </a>
+                                    <a href="/admin/data_management/processingerror/" class="btn btn-warning">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        {% trans "View Processing Errors" %}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.description-block {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.description-header {
+    font-size: 2.1rem;
+    color: #495057;
+    font-weight: bold;
+}
+
+.description-text {
+    color: #6c757d;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+}
+
+.card {
+    margin-bottom: 20px;
+}
+
+.quality-score-display {
+    font-size: 3rem;
+    font-weight: bold;
+    color: #495057;
+}
+
+.quality-score-number {
+    color: #28a745;
+}
+
+.quality-score-max {
+    color: #6c757d;
+    font-size: 2rem;
+}
+
+.info-box {
+    display: flex;
+    min-height: 80px;
+    background: #fff;
+    width: 100%;
+    box-shadow: 0 0 1px rgba(0,0,0,.125), 0 1px 3px rgba(0,0,0,.2);
+    border-radius: 0.25rem;
+    margin-bottom: 20px;
+}
+
+.info-box-icon {
+    border-radius: 0.25rem 0 0 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.875rem;
+    width: 70px;
+    text-align: center;
+    color: #fff;
+}
+
+.info-box-content {
+    padding: 5px 10px;
+    flex: 1;
+}
+
+.info-box-text {
+    display: block;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #6c757d;
+}
+
+.info-box-number {
+    display: block;
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: #495057;
+}
+</style>
+{% endblock %}

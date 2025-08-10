@@ -5,6 +5,7 @@ from typing import Dict
 
 import pandas as pd
 
+from ..utils.conversion_fixer import ConversionFixer
 from .base_transformer import BaseTransformer
 
 
@@ -14,16 +15,21 @@ class OdooDataTransformer(BaseTransformer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+        # Initialize conversion fixer
+        self.conversion_fixer = ConversionFixer()
+
         # Column mappings for different language and format
         self.column_mappings = {
             "products": {
-                "name": ["nom"],
-                "purchase_category": ["catégorie_de_produits"],
-                "sales_category": ["catégorie_du_point_de_vente"],
-                "unit_of_measure": ["unité"],
-                "current_selling_price": ["prix_de_vente"],
-                "current_cost_per_unit": ["coût"],
-                "current_stock": ["quantité_en_stock"],
+                "name": ["Nom"],
+                "purchase_category": ["Catégorie de produits"],
+                "sales_category": ["Catégorie du point de vente"],
+                "unit_of_measure": ["Unité"],
+                "current_selling_price": ["Prix de vente"],
+                "current_cost_per_unit": ["Coût"],
+                "current_stock": ["Quantité en stock"],
+                "favorite": ["Favori"],
+                "variant_values": ["Valeurs de la variante"],
             },
             "purchases": {
                 "purchase_date": ["purchase_date"],
@@ -32,14 +38,14 @@ class OdooDataTransformer(BaseTransformer):
                 "total_cost": ["total"],
             },
             "sales": {
-                "sale_date": ["date_de_la_commande"],
-                "order_number": ["commander"],
-                "product": ["variante_de_produit"],
-                "quantity_sold": ["qté_commandée"],
-                "unit_sale_price": ["prix_unitaire"],
-                "total_sale_price": ["total"],
-                "customer": ["client"],
-                "cashier": ["vendeur"],
+                "sale_date": ["Date de la commande"],
+                "order_number": ["Commander"],
+                "product": ["Variante de produit"],
+                "quantity_sold": ["Qté commandée"],
+                "unit_sale_price": ["Prix unitaire"],
+                "total_sale_price": ["Total"],
+                "customer": ["Client"],
+                "cashier": ["Vendeur"],
             },
         }
 
@@ -78,17 +84,25 @@ class OdooDataTransformer(BaseTransformer):
     def _transform_products(self, df: pd.DataFrame) -> pd.DataFrame:
         """Transform products sheet"""
 
+        # Log initial state
+        self.log_info(
+            f"Products transformation started. Initial DataFrame shape: {df.shape}"
+        )
+        self.log_info(f"Initial columns: {list(df.columns)}")
+
         # Rename columns
         df = self._map_columns(df, "products")
+        self.log_info(f"After column mapping: {list(df.columns)}")
 
-        # Combine name (formerly nom) with valeurs_de_la_variante to create a formatted product name
-        if "name" in df.columns and "valeurs_de_la_variante" in df.columns:
+        # Combine name (formerly nom) with variant_values to create a formatted product name
+        if "name" in df.columns and "variant_values" in df.columns:
             df["name"] = df.apply(
                 lambda row: self._combine_nom_with_variant(
-                    row["name"], row["valeurs_de_la_variante"]
+                    row["name"], row["variant_values"]
                 ),
                 axis=1,
             )
+            self.log_info("Applied name and variant combination")
 
         # Required columns check
         required_columns = [
@@ -106,7 +120,12 @@ class OdooDataTransformer(BaseTransformer):
             self.log_warning(
                 f"Missing required columns for products: {missing_columns}"
             )
+            self.log_warning(f"Available columns: {list(df.columns)}")
             return pd.DataFrame()
+
+        self.log_info(
+            f"All required columns present. DataFrame shape before cleaning: {df.shape}"
+        )
 
         transformed_df = df.copy()
 
@@ -114,36 +133,36 @@ class OdooDataTransformer(BaseTransformer):
         for idx, row in transformed_df.iterrows():
             try:
                 # Clean product name
-                if pd.isna(row["name"]) or row["name"].strip() == "":
-                    self.log_error("Empty product name at row ", idx + 1)
-                    continue
-
-                transformed_df.at[idx, "name"] = str(row["name"]).strip()
+                if pd.isna(row["name"]) or str(row["name"]).strip() == "":
+                    self.log_warning(
+                        f"Empty product name at row {idx + 1}, setting to 'Unknown Product'"
+                    )
+                    transformed_df.at[idx, "name"] = f"Unknown Product {idx + 1}"
+                else:
+                    transformed_df.at[idx, "name"] = str(row["name"]).strip()
 
                 # Clean cost per unit
                 cost_per_unit = self._clean_decimal(row["current_cost_per_unit"])
-                if cost_per_unit <= 0:
-                    self.log_error(
-                        f"Invalid cost for product {row['name']}: {row['current_cost_per_unit']}",
+                if cost_per_unit is None:
+                    cost_per_unit = 0
+                elif cost_per_unit < 0:
+                    self.log_warning(
+                        f"Negative cost for product {row['name']}: {row['current_cost_per_unit']}, setting to 0",
                         idx + 1,
                     )
-                    continue
-
-                if cost_per_unit is None:
                     cost_per_unit = 0
 
                 transformed_df.at[idx, "current_cost_per_unit"] = cost_per_unit
 
                 # Clean selling price
                 selling_price = self._clean_decimal(row["current_selling_price"])
-                if selling_price <= 0:
-                    self.log_error(
-                        f"Invalid selling price for product {row['name']}: {row['current_selling_price']}",
+                if selling_price is None:
+                    selling_price = 0
+                elif selling_price < 0:
+                    self.log_warning(
+                        f"Negative selling price for product {row['name']}: {row['current_selling_price']}, setting to 0",
                         idx + 1,
                     )
-                    continue
-
-                if selling_price is None:
                     selling_price = 0
 
                 transformed_df.at[idx, "current_selling_price"] = selling_price
@@ -151,14 +170,14 @@ class OdooDataTransformer(BaseTransformer):
                 # Set default purchase category if missing
                 if (
                     pd.isna(row["purchase_category"])
-                    or row["purchase_category"].strip() == ""
+                    or str(row["purchase_category"]).strip() == ""
                 ):
                     transformed_df.at[idx, "purchase_category"] = "Unknown"
 
                 # Set default sales category if missing
                 if (
                     pd.isna(row["sales_category"])
-                    or row["sales_category"].strip() == ""
+                    or str(row["sales_category"]).strip() == ""
                 ):
                     transformed_df.at[idx, "sales_category"] = "Unknown"
 
@@ -179,21 +198,45 @@ class OdooDataTransformer(BaseTransformer):
                 transformed_df.at[idx, "current_stock"] = current_stock
 
             except Exception as e:
-                self.log_error(
-                    f"Error processing product row {idx + 1}: {str(e)}", idx + 1
+                self.log_warning(
+                    f"Error processing product row {idx + 1}: {str(e)}, continuing with defaults"
                 )
+                # Set defaults for this row instead of skipping
+                transformed_df.at[idx, "current_cost_per_unit"] = 0
+                transformed_df.at[idx, "current_selling_price"] = 0
+                transformed_df.at[idx, "current_stock"] = 0
+                transformed_df.at[idx, "unit_of_measure"] = "unit"
 
         # Final DataFrame with only required columns
         transformed_df = transformed_df[required_columns]
+
+        self.log_info(
+            f"Products transformation completed. Final DataFrame shape: {transformed_df.shape}"
+        )
+        self.log_info(f"Final columns: {list(transformed_df.columns)}")
 
         return transformed_df
 
     def _transform_purchases(self, df: pd.DataFrame) -> pd.DataFrame:
         """Transform purchases sheet from pivot table format to tabular format"""
 
+        self.log_info(f"Starting purchases transformation. DataFrame shape: {df.shape}")
+        self.log_info(f"Purchases columns: {list(df.columns)}")
+        self.log_info(f"Number of columns: {len(df.columns)}")
+        self.log_info(f"Has 'Unnamed: 0' column: {'Unnamed: 0' in df.columns}")
+
         # Check if this is a pivot table format (first column contains product names and dates)
-        if len(df.columns) == 3 and "unnamed:_0" in df.columns:
+        if len(df.columns) == 3 and "Unnamed: 0" in df.columns:
+            self.log_info("Detected pivot table format, converting to tabular...")
             return self._convert_pivot_to_tabular(df)
+        else:
+            self.log_info("Detected tabular format, cleaning data directly...")
+            self.log_info(
+                f"Pivot detection failed: expected 3 columns, got {len(df.columns)}"
+            )
+            self.log_info(
+                f"Expected 'Unnamed: 0' column, found columns: {list(df.columns)}"
+            )
 
         # If it's already in tabular format, just clean the data
         df = self._map_columns(df, "purchases")
@@ -236,7 +279,7 @@ class OdooDataTransformer(BaseTransformer):
 
                 # Clean quantity
                 quantity = self._clean_decimal(row["quantity_purchased"])
-                if quantity is None or quantity <= 0:
+                if quantity is None:
                     self.log_error(
                         f"Invalid quantity: {row['quantity_purchased']}", idx + 1
                     )
@@ -246,7 +289,7 @@ class OdooDataTransformer(BaseTransformer):
 
                 # Clean total
                 total = self._clean_decimal(row["total_cost"])
-                if total is None or total <= 0:
+                if total is None:
                     self.log_error(f"Invalid total: {row['total_cost']}", idx + 1)
                     continue
 
@@ -258,55 +301,72 @@ class OdooDataTransformer(BaseTransformer):
 
         # Final DataFrame with only required columns
         transformed_df = transformed_df[required_columns]
+
+        # Apply conversion fixes for large quantity issues
+        if not transformed_df.empty:
+            self.log_info("Applying conversion fixes to purchases data...")
+            self.log_info(
+                f"Before conversion fix - Sample quantities: {transformed_df['quantity_purchased'].head().tolist()}"
+            )
+
+            transformed_df = self.conversion_fixer.fix_purchases_data(transformed_df)
+
+            # Log conversion fix summary
+            fix_summary = self.conversion_fixer.get_fixes_summary()
+            if fix_summary["total_fixes"] > 0:
+                self.log_info(f"Applied {fix_summary['total_fixes']} conversion fixes")
+                for pattern, count in fix_summary["patterns_found"].items():
+                    self.log_info(f"  {pattern}: {count} fixes")
+                self.log_info(
+                    f"After conversion fix - Sample quantities: {transformed_df['quantity_purchased'].head().tolist()}"
+                )
+            else:
+                self.log_info("No conversion fixes were applied")
+        else:
+            self.log_info("No purchases data to apply conversion fixes to")
+
         return transformed_df
 
     def _convert_pivot_to_tabular(self, df: pd.DataFrame) -> pd.DataFrame:
         """Convert pivot table format to tabular format"""
 
-        # French month abbreviations mapping
-        french_months = {
-            "janv.": "01",
-            "févr.": "02",
-            "mars": "03",
-            "avr.": "04",
-            "mai": "05",
-            "juin": "06",
-            "juil.": "07",
-            "août": "08",
-            "sept.": "09",
-            "oct.": "10",
-            "nov.": "11",
-            "déc.": "12",
-        }
+        # French month abbreviations mapping (shared with _clean_date)
+        french_months = self._get_french_months_mapping()
 
         result_rows = []
         current_product = None
 
         for idx, row in df.iterrows():
-            unnamed_col = row["unnamed:_0"]
-            qte = row["qté_commandée"]
-            total = row["total"]
+            unnamed_col = row["Unnamed: 0"]
+            qte = row["Qté commandée"]
+            total = row["Total"]
+
+            # Skip rows with empty or invalid data
+            if pd.isna(unnamed_col) or str(unnamed_col).strip() == "":
+                continue
 
             # Check if this row contains a product name (not a date)
-            # Product names typically don't contain date patterns
             if not self._is_date_string(unnamed_col, french_months):
-                # This is a product name
+                # This is a product name - update current product
                 current_product = self._clean_product_name(str(unnamed_col).strip())
+                # Don't create a record yet - wait for the date row
             else:
                 # This is a date row, create a purchase record
-                if current_product is not None:
-                    # Parse the French date
-                    purchase_date = self._parse_french_date(unnamed_col, french_months)
+                if current_product is not None and current_product != "":
+                    # Parse the French date using the unified _clean_date method
+                    purchase_date = self._clean_date(unnamed_col)
 
                     if purchase_date is not None:
-                        result_rows.append(
-                            {
-                                "purchase_date": purchase_date,
-                                "product": current_product,
-                                "qté_commandée": qte,
-                                "total": total,
-                            }
-                        )
+                        # Only create record if we have valid quantity and total
+                        if not pd.isna(qte) and not pd.isna(total):
+                            result_rows.append(
+                                {
+                                    "purchase_date": purchase_date,
+                                    "product": current_product,
+                                    "quantity_purchased": qte,
+                                    "total_cost": total,
+                                }
+                            )
 
         # Create the result DataFrame
         if result_rows:
@@ -315,6 +375,127 @@ class OdooDataTransformer(BaseTransformer):
         else:
             return pd.DataFrame()
 
+    def _clean_purchases_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Clean the converted purchases data"""
+
+        required_columns = [
+            "purchase_date",
+            "product",
+            "quantity_purchased",
+            "total_cost",
+        ]
+
+        # Ensure all required columns exist
+        for col in required_columns:
+            if col not in df.columns:
+                df[col] = None
+
+        # Clean and validate data
+        cleaned_rows = []
+        for idx, row in df.iterrows():
+            try:
+                # Clean purchase date
+                purchase_date = self._clean_date(row["purchase_date"])
+                if purchase_date is None:
+                    self.log_error(
+                        f"Invalid purchase date: {row['purchase_date']}", idx + 1
+                    )
+                    continue
+
+                # Clean product
+                product = self._clean_product_name(str(row["product"]).strip())
+                if product == "":
+                    self.log_error(f"Empty product at row {idx + 1}", idx + 1)
+                    continue
+
+                # Clean quantity
+                quantity = self._clean_decimal(row["quantity_purchased"])
+                if quantity is None:
+                    self.log_error(
+                        f"Invalid quantity: {row['quantity_purchased']}", idx + 1
+                    )
+                    continue
+
+                # Clean total
+                total = self._clean_decimal(row["total_cost"])
+                if total is None:
+                    self.log_error(f"Invalid total: {row['total_cost']}", idx + 1)
+                    continue
+
+                cleaned_rows.append(
+                    {
+                        "purchase_date": purchase_date,
+                        "product": product,
+                        "quantity_purchased": quantity,
+                        "total_cost": total,
+                    }
+                )
+
+            except Exception as e:
+                self.log_error(
+                    f"Error processing purchase row {idx + 1}: {str(e)}", idx + 1
+                )
+
+        result_df = pd.DataFrame(cleaned_rows)
+
+        # Apply conversion fixes for large quantity issues
+        if not result_df.empty:
+            self.log_info(
+                "Applying conversion fixes to purchases data (pivot conversion path)..."
+            )
+            self.log_info(
+                f"Before conversion fix - Sample quantities: {result_df['quantity_purchased'].head().tolist()}"
+            )
+
+            result_df = self.conversion_fixer.fix_purchases_data(result_df)
+
+            # Log conversion fix summary
+            fix_summary = self.conversion_fixer.get_fixes_summary()
+            if fix_summary["total_fixes"] > 0:
+                self.log_info(f"Applied {fix_summary['total_fixes']} conversion fixes")
+                for pattern, count in fix_summary["patterns_found"].items():
+                    self.log_info(f"  {pattern}: {count} fixes")
+                self.log_info(
+                    f"After conversion fix - Sample quantities: {result_df['quantity_purchased'].head().tolist()}"
+                )
+            else:
+                self.log_info("No conversion fixes were applied")
+        else:
+            self.log_info(
+                "No purchases data to apply conversion fixes to (pivot conversion path)"
+            )
+
+        return result_df
+
+    def _get_french_months_mapping(self) -> dict:
+        """Get French month abbreviations mapping (shared across methods)"""
+        return {
+            "janvier": "01",
+            "janv.": "01",
+            "février": "02",
+            "févr.": "02",
+            "fevrier": "02",
+            "fevr.": "02",
+            "mars": "03",
+            "avril": "04",
+            "avr.": "04",
+            "mai": "05",
+            "juin": "06",
+            "juillet": "07",
+            "juil.": "07",
+            "août": "08",
+            "aout": "08",
+            "septembre": "09",
+            "sept.": "09",
+            "octobre": "10",
+            "oct.": "10",
+            "novembre": "11",
+            "nov.": "11",
+            "décembre": "12",
+            "dec.": "12",
+            "déc.": "12",
+        }
+
     def _is_date_string(self, text: str, french_months: dict) -> bool:
         """Check if a string represents a French date"""
         if pd.isna(text):
@@ -322,38 +503,24 @@ class OdooDataTransformer(BaseTransformer):
 
         text = str(text).strip()
 
-        # Check for French date pattern: "30 avr. 2025"
+        # Check for French date pattern: "30 avr. 2025" or "01 mai 2025"
         for month_abbr in french_months.keys():
             if month_abbr in text and any(char.isdigit() for char in text):
-                return True
+                # Additional validation: should have exactly 3 parts (day, month, year)
+                parts = text.split()
+                if len(parts) == 3:
+                    # First part should be a number (day)
+                    # Second part should be the month abbreviation
+                    # Third part should be a 4-digit year
+                    if (
+                        parts[0].isdigit()
+                        and parts[1] == month_abbr
+                        and len(parts[2]) == 4
+                        and parts[2].isdigit()
+                    ):
+                        return True
 
         return False
-
-    def _parse_french_date(self, date_str: str, french_months: dict) -> str:
-        """Parse French date string to ISO format"""
-        try:
-            date_str = str(date_str).strip()
-
-            # Extract day, month, and year
-            parts = date_str.split()
-            if len(parts) != 3:
-                return None
-
-            day = parts[0]
-            month_abbr = parts[1]
-            year = parts[2]
-
-            # Get month number
-            month_num = french_months.get(month_abbr)
-            if month_num is None:
-                return None
-
-            # Format as ISO date
-            return f"{year}-{month_num}-{day.zfill(2)}"
-
-        except Exception as e:
-            self.log_error(f"Error parsing date '{date_str}': {str(e)}")
-            return None
 
     def _transform_sales(self, df: pd.DataFrame) -> pd.DataFrame:
         """Transform sales sheet"""
@@ -392,7 +559,7 @@ class OdooDataTransformer(BaseTransformer):
 
                 # Clean numeric fields
                 quantity_sold = self._clean_decimal(row["quantity_sold"])
-                if quantity_sold is None or quantity_sold <= 0:
+                if quantity_sold is None:
                     self.log_error(
                         f"Invalid quantity sold: {row['quantity_sold']}", idx + 1
                     )
@@ -470,20 +637,14 @@ class OdooDataTransformer(BaseTransformer):
     def _map_columns(self, df: pd.DataFrame, sheet_type: str) -> pd.DataFrame:
         """Map DataFrames to standard column names"""
 
-        if sheet_type in self.column_mappings:
+        if sheet_type not in self.column_mappings:
             return df
 
         # Get column mappings for this sheet
         mappings = self.column_mappings.get(sheet_type, {})
 
-        # Rename columns
-        if mappings:
-            df = df.rename(columns=mappings)
-
+        # Create column mapping dictionary
         column_map = {}
-        mappings = self.column_mappings[sheet_type]
-
-        # Rename columns
         for standard_name, possible_names in mappings.items():
             for col in possible_names:
                 if col in df.columns:
@@ -531,11 +692,39 @@ class OdooDataTransformer(BaseTransformer):
             if isinstance(value, datetime):
                 return value
 
-            # Try to convert to datetime with multiple formats
-            return pd.to_datetime(value, dayfirst=True)
+            # Convert to string for processing
+            date_str = str(value).strip()
 
-        except (ValueError, TypeError):
-            self.log_warning(f"Invalid date value: {value}")
+            # Check if it's a French date format (e.g., "5 janvier 2024" or "01 mai 2025")
+            french_months = self._get_french_months_mapping()
+
+            # Try to parse French date format
+            for month_name, month_num in french_months.items():
+                if month_name in date_str.lower():
+                    # Extract day, month, and year
+                    parts = date_str.split()
+                    if len(parts) >= 3:
+                        day = parts[0]
+                        year = parts[-1]  # Last part should be year
+
+                        # Ensure year is 4 digits and reasonable
+                        if len(year) == 4 and 2020 <= int(year) <= 2030:
+                            # Format as ISO date
+                            return f"{year}-{month_num}-{day.zfill(2)}"
+
+            # If not French format, try standard pandas datetime parsing (without dayfirst=True)
+            try:
+                parsed_date = pd.to_datetime(value)
+                return parsed_date.strftime("%Y-%m-%d")
+            except Exception:
+                pass
+
+            # If all parsing attempts fail, log warning and return None
+            self.log_warning(f"Could not parse date value: {value}")
+            return None
+
+        except (ValueError, TypeError) as e:
+            self.log_warning(f"Invalid date value: {value} - Error: {str(e)}")
             return None
 
     def _standardize_unit_of_measure(self, value):
@@ -630,25 +819,26 @@ class OdooDataTransformer(BaseTransformer):
 
 class RecipeDataTransformer(BaseTransformer):
     """Transform and clean recipe data for restaurant analytics"""
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        
+
         # Column mappings for different language and format
         self.column_mappings = {
             "recipes": {
-                "dish_name": ["plat"],
-                "ingredient": ["ingrédient"],
-                "quantity": ["quantité"],
-                "main_ingredient": ["principal"],
+                "dish_name": ["Plat"],
+                "ingredient": ["Ingrédient"],
+                "quantity": ["Quantité"],
+                "main_ingredient": ["Principal"],
+                "unit_of_recipe": ["Unité"],
             },
         }
-        
+
     def transform(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
         """Transform and clean all sheets"""
-        
+
         transformed_data = {}
-        
+
         for sheet_type, df in data.items():
             if df is not None and not df.empty:
                 try:
@@ -657,139 +847,171 @@ class RecipeDataTransformer(BaseTransformer):
                         transformed_data[sheet_type] = transformed_df
                 except Exception as e:
                     self.log_error(f"Error transforming {sheet_type} sheet: {str(e)}")
-                    
+
         return transformed_data
-    
+
     def _transform_sheet(self, df: pd.DataFrame, sheet_type: str) -> pd.DataFrame:
         """Transform individual sheet"""
-        
+
         if sheet_type == "recipes":
             return self._transform_recipes(df)
         else:
             self.log_warning(f"Unknown sheet type: {sheet_type}")
             return df
-        
+
     def _transform_recipes(self, df: pd.DataFrame) -> pd.DataFrame:
         """Transform recipes sheet"""
-        
+
+        self.log_info(f"Starting recipes transformation. DataFrame shape: {df.shape}")
+        self.log_info(f"Original columns: {list(df.columns)}")
+
         # Rename columns
         df = self._map_columns(df, "recipes")
-        
+        self.log_info(f"After column mapping: {list(df.columns)}")
+
         required_columns = [
             "dish_name",
             "ingredient",
             "quantity",
             "main_ingredient",
+            "unit_of_recipe",
         ]
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             self.log_warning(f"Missing required columns for recipes: {missing_columns}")
+            self.log_warning(f"Available columns: {list(df.columns)}")
             return pd.DataFrame()
-        
+
         transformed_df = df.copy()
-        
+
         # Clean and validate data
         for idx, row in transformed_df.iterrows():
             try:
                 # Clean dish name
                 dish_name = str(row["dish_name"]).strip()
-                
+
                 if dish_name == "":
                     self.log_error(f"Empty dish name at row {idx + 1}", idx + 1)
                     continue
-                
+
                 transformed_df.at[idx, "dish_name"] = dish_name
-                
+
+                # Clean unit of recipe
+                unit_of_recipe = str(row["unit_of_recipe"]).strip()
+
+                if unit_of_recipe == "":
+                    self.log_error(f"Empty unit of recipe at row {idx + 1}", idx + 1)
+                    continue
+
+                transformed_df.at[idx, "unit_of_recipe"] = unit_of_recipe
+
                 # Clean ingredient
                 ingredient = str(row["ingredient"]).strip()
-                
+
                 if ingredient == "":
                     self.log_error(f"Empty ingredient at row {idx + 1}", idx + 1)
                     continue
-                
+
                 transformed_df.at[idx, "ingredient"] = ingredient
-                
+
                 # Clean quantity
                 quantity = self._clean_decimal(row["quantity"])
-                
-                if quantity is None or quantity <= 0:
+
+                if quantity is None:
                     self.log_error(f"Invalid quantity at row {idx + 1}", idx + 1)
                     continue
-                
+
                 transformed_df.at[idx, "quantity"] = quantity
-                
+
                 # Clean main ingredient
                 main_ingredient = self._clean_boolean(row["main_ingredient"])
-                
-                if main_ingredient == "":
-                    self.log_error(f"Empty main ingredient at row {idx + 1}", idx + 1)
-                    continue
-                
                 transformed_df.at[idx, "main_ingredient"] = main_ingredient
-                
+
             except Exception as e:
-                self.log_error(f"Error processing recipe row {idx + 1}: {str(e)}", idx + 1)
-                
+                self.log_error(
+                    f"Error processing recipe row {idx + 1}: {str(e)}", idx + 1
+                )
+
         # Final DataFrame with only required columns
         transformed_df = transformed_df[required_columns]
-        
+
         return transformed_df
-    
+
     def _map_columns(self, df: pd.DataFrame, sheet_type: str) -> pd.DataFrame:
         """Map DataFrames to standard column names"""
-        
-        if sheet_type in self.column_mappings:
+
+        if sheet_type not in self.column_mappings:
             return df
-        
+
         # Get column mappings for this sheet
         column_map = {}
         mappings = self.column_mappings[sheet_type]
-        
+
         # Rename columns
         for standard_name, possible_names in mappings.items():
             for col in possible_names:
                 if col in df.columns:
                     column_map[col] = standard_name
                     break
-                    
+
         # Rename columns
         if column_map:
             df = df.rename(columns=column_map)
-            
+
         return df
-    
+
     def _clean_decimal(self, value):
         """Clean and convert value to decimal"""
-        
+
         if pd.isna(value):
             return None
-        
+
         try:
             # Convert to string
             str_value = str(value).strip()
-            
+
             # Remove non-numeric characters
             str_value = re.sub(r"[^0-9.]", "", str_value)
-            
+
             # Handle different decimal separators
             str_value = str_value.replace(",", ".")
-            
+
             # Remove extra dots (keep only the last one)
             parts = str_value.split(".")
             if len(parts) > 2:
                 str_value = ".".join(parts[:-1]) + "." + parts[-1]
-                
+
             return Decimal(str_value)
-            
+
         except (InvalidOperation, ValueError):
             return None
-        
+
     def _clean_boolean(self, value):
         """Clean and convert value to boolean"""
-        
+
         if pd.isna(value):
-            return None
-        
+            return False
+
         if isinstance(value, bool):
             return value
-        
+
+        # Convert string values
+        str_value = str(value).lower().strip()
+
+        if str_value in ["true", "1", "yes", "oui", "y", "t"]:
+            return True
+        elif str_value in [
+            "false",
+            "0",
+            "no",
+            "non",
+            "n",
+            "f",
+            "nan",
+            "none",
+            "null",
+            "",
+        ]:
+            return False
+        else:
+            return False  # Default to False for unknown values

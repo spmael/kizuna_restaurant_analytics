@@ -30,3 +30,7 @@ class BaseTransformer(ABC):
         warning_msg = f"Row {row_number}: {message}" if row_number else message
         self.warnings.append(warning_msg)
         logger.warning(warning_msg)
+
+    def log_info(self, message: str):
+        """Log Transformer info messages"""
+        logger.info(message)

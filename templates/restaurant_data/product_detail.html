@@ -1,0 +1,259 @@
+{% extends 'restaurant_data/base.html' %}
+{% load static i18n %}
+
+{% block page_title %}{{ product.name }}{% endblock %}
+
+{% block restaurant_data_content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'restaurant_data:product_list' %}">
+                        <i class="fas fa-box me-1"></i>{% trans "Products" %}
+                    </a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
+            </ol>
+        </nav>
+
+        <!-- Product Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-1">{{ product.name }}</h1>
+                {% if product.name_fr or product.name_en %}
+                    <p class="text-muted mb-0">
+                        {% if product.name_fr %}{{ product.name_fr }}{% endif %}
+                        {% if product.name_fr and product.name_en %} | {% endif %}
+                        {% if product.name_en %}{{ product.name_en }}{% endif %}
+                    </p>
+                {% endif %}
+            </div>
+            <div class="btn-group" role="group">
+                <a href="{% url 'restaurant_data:product_edit' product.id %}" class="btn btn-outline-primary">
+                    <i class="fas fa-edit me-1"></i>{% trans "Edit" %}
+                </a>
+                <a href="{% url 'restaurant_data:product_delete' product.id %}" class="btn btn-outline-danger btn-delete">
+                    <i class="fas fa-trash me-1"></i>{% trans "Delete" %}
+                </a>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Product Information -->
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>{% trans "Product Information" %}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-4">{% trans "Category" %}</dt>
+                                    <dd class="col-sm-8">
+                                        <span class="badge bg-light text-dark">
+                                            {{ product.purchase_category.name }}
+                                        </span>
+                                    </dd>
+                                    
+                                    <dt class="col-sm-4">{% trans "Sales Category" %}</dt>
+                                    <dd class="col-sm-8">
+                                        <span class="badge bg-light text-dark">
+                                            {{ product.sales_category.name }}
+                                        </span>
+                                    </dd>
+                                    
+                                    <dt class="col-sm-4">{% trans "Unit" %}</dt>
+                                    <dd class="col-sm-8">{{ product.unit_of_measure.name }}</dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-4">{% trans "Selling Price" %}</dt>
+                                    <dd class="col-sm-8">
+                                        <span class="fw-semibold text-success">
+                                            {{ product.current_selling_price|floatformat:2 }}
+                                        </span>
+                                    </dd>
+                                    
+                                    <dt class="col-sm-4">{% trans "Cost per Unit" %}</dt>
+                                    <dd class="col-sm-8">
+                                        <span class="text-muted">
+                                            {{ product.current_cost_per_unit|floatformat:2 }}
+                                        </span>
+                                    </dd>
+                                    
+                                    <dt class="col-sm-4">{% trans "Stock" %}</dt>
+                                    <dd class="col-sm-8">
+                                        {% if product.current_stock <= 0 %}
+                                            <span class="badge bg-danger">{% trans "Out of Stock" %}</span>
+                                        {% elif product.current_stock < 10 %}
+                                            <span class="badge bg-warning text-dark">{% trans "Low Stock" %}</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{{ product.current_stock|floatformat:1 }}</span>
+                                        {% endif %}
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                        
+                        {% if product.description %}
+                            <hr>
+                            <h6>{% trans "Description" %}</h6>
+                            <p class="text-muted">{{ product.description }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-shopping-cart me-2"></i>{% trans "Recent Purchases" %}
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                {% if recent_purchases %}
+                                    <div class="list-group list-group-flush">
+                                        {% for purchase in recent_purchases %}
+                                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <small class="text-muted">{{ purchase.purchase_date }}</small>
+                                                    <br>
+                                                    <span class="fw-semibold">{{ purchase.quantity_purchased }} {{ product.unit_of_measure.name }}</span>
+                                                </div>
+                                                <span class="badge bg-primary rounded-pill">
+                                                    {{ purchase.total_cost|floatformat:2 }}
+                                                </span>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <p class="text-muted text-center mb-0">{% trans "No recent purchases" %}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-chart-line me-2"></i>{% trans "Recent Sales" %}
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                {% if recent_sales %}
+                                    <div class="list-group list-group-flush">
+                                        {% for sale in recent_sales %}
+                                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <small class="text-muted">{{ sale.sale_date }}</small>
+                                                    <br>
+                                                    <span class="fw-semibold">{{ sale.quantity_sold }} {{ product.unit_of_measure.name }}</span>
+                                                </div>
+                                                <span class="badge bg-success rounded-pill">
+                                                    {{ sale.total_sale_price|floatformat:2 }}
+                                                </span>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <p class="text-muted text-center mb-0">{% trans "No recent sales" %}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Sidebar -->
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>{% trans "Statistics" %}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6 mb-3">
+                                <div class="stats-card card">
+                                    <div class="card-body">
+                                        <div class="stats-number">{{ total_purchased|floatformat:1 }}</div>
+                                        <div class="stats-label">{% trans "Total Purchased" %}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <div class="stats-card card">
+                                    <div class="card-body">
+                                        <div class="stats-number">{{ total_sold|floatformat:1 }}</div>
+                                        <div class="stats-label">{% trans "Total Sold" %}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row text-center">
+                            <div class="col-6 mb-3">
+                                <div class="stats-card card">
+                                    <div class="card-body">
+                                        <div class="stats-number">{{ product.stock_value|floatformat:2 }}</div>
+                                        <div class="stats-label">{% trans "Stock Value" %}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <div class="stats-card card">
+                                    <div class="card-body">
+                                        <div class="stats-number">
+                                            {% if product.current_stock > 0 %}
+                                                {{ product.current_selling_price|floatformat:2 }}
+                                            {% else %}
+                                                0.00
+                                            {% endif %}
+                                        </div>
+                                        <div class="stats-label">{% trans "Selling Price" %}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-bolt me-2"></i>{% trans "Quick Actions" %}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'restaurant_data:purchase_add' %}?product={{ product.id }}" 
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-plus me-1"></i>{% trans "Add Purchase" %}
+                            </a>
+                            <a href="{% url 'restaurant_data:sales_add' %}?product={{ product.id }}" 
+                               class="btn btn-outline-success">
+                                <i class="fas fa-plus me-1"></i>{% trans "Add Sale" %}
+                            </a>
+                            <a href="{% url 'restaurant_data:product_edit' product.id %}" 
+                               class="btn btn-outline-secondary">
+                                <i class="fas fa-edit me-1"></i>{% trans "Edit Product" %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,182 @@
+{% extends 'restaurant_data/base.html' %}
+{% load static i18n %}
+
+{% block page_title %}{% trans "Sales" %}{% endblock %}
+
+{% block restaurant_data_content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-chart-line me-2"></i>{% trans "Sales" %}
+            </h1>
+            <a href="{% url 'restaurant_data:sales_add' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>{% trans "Add Sale" %}
+            </a>
+        </div>
+
+        <!-- Search Form -->
+        <div class="search-form">
+            <form method="get" class="row g-3">
+                <div class="col-md-8">
+                    <label for="search" class="form-label">{% trans "Search Sales" %}</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search_query }}" placeholder="{% trans 'Search by product name, order number, customer...' %}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-search me-1"></i>{% trans "Search" %}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Sales Table -->
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>{% trans "Sales List" %}</span>
+                    <span class="badge bg-primary">{{ page_obj.paginator.count }} {% trans "sales" %}</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if sales %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Date" %}</th>
+                                    <th>{% trans "Order #" %}</th>
+                                    <th>{% trans "Product" %}</th>
+                                    <th>{% trans "Quantity" %}</th>
+                                    <th>{% trans "Unit Price" %}</th>
+                                    <th>{% trans "Total" %}</th>
+                                    <th>{% trans "Customer" %}</th>
+                                    <th>{% trans "Actions" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in sales %}
+                                    <tr>
+                                        <td>
+                                            <span class="fw-semibold">{{ sale.sale_date }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark">{{ sale.order_number }}</span>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="flex-shrink-0">
+                                                    <i class="fas fa-box text-success me-2"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <a href="{% url 'restaurant_data:product_detail' sale.product.id %}" 
+                                                       class="text-decoration-none fw-semibold">
+                                                        {{ sale.product.name }}
+                                                    </a>
+                                                    <br>
+                                                    <small class="text-muted">{{ sale.product.sales_category.name }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="fw-semibold">
+                                                {{ sale.quantity_sold }} {{ sale.product.unit_of_measure.name }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="text-muted">
+                                                {{ sale.unit_sale_price|floatformat:2 }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="fw-semibold text-success">
+                                                {{ sale.total_sale_price|floatformat:2 }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if sale.customer %}
+                                                <span class="badge bg-info">{{ sale.customer }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="{% url 'restaurant_data:sales_detail' sale.id %}" 
+                                                   class="btn btn-outline-primary" 
+                                                   data-bs-toggle="tooltip" title="{% trans 'View Details' %}">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">{% trans "No sales found" %}</h5>
+                        <p class="text-muted">{% trans "Try adjusting your search criteria or add a new sale." %}</p>
+                        <a href="{% url 'restaurant_data:sales_add' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>{% trans "Add First Sale" %}
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+            <nav aria-label="{% trans 'Sales pagination' %}" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

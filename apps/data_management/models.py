@@ -52,6 +52,43 @@ class DataUpload(TimeStampedModel):
     processed_records = models.PositiveIntegerField(_("Processed Records"), default=0)
     error_records = models.PositiveIntegerField(_("Error Records"), default=0)
 
+    # Processing stages and progress
+    current_stage = models.CharField(
+        _("Current Stage"),
+        max_length=50,
+        default="pending",
+        help_text=_("Current processing stage"),
+    )
+    stage_progress = models.PositiveIntegerField(
+        _("Stage Progress (%)"),
+        default=0,
+        help_text=_("Progress within current stage (0-100)"),
+    )
+    total_stages = models.PositiveIntegerField(
+        _("Total Stages"), default=5, help_text=_("Total number of processing stages")
+    )
+    completed_stages = models.PositiveIntegerField(
+        _("Completed Stages"), default=0, help_text=_("Number of completed stages")
+    )
+
+    # Detailed sheet-level statistics and quality metrics
+    sheet_statistics = models.JSONField(
+        _("Sheet Statistics"),
+        default=dict,
+        blank=True,
+        help_text=_(
+            "Detailed statistics for each sheet type (products, purchases, sales, recipes)"
+        ),
+    )
+
+    # Data quality metrics
+    data_quality_metrics = models.JSONField(
+        _("Data Quality Metrics"),
+        default=dict,
+        blank=True,
+        help_text=_("Comprehensive data quality metrics for each sheet"),
+    )
+
     # User tracking
     uploaded_by = models.ForeignKey(
         User,
@@ -80,6 +117,28 @@ class DataUpload(TimeStampedModel):
     def __str__(self):
         return self.original_file_name
 
+    def get_sheet_statistics(self):
+        """Get formatted sheet statistics"""
+        if not self.sheet_statistics:
+            return {}
+        return self.sheet_statistics
+
+    def get_sheet_progress(self, sheet_type):
+        """Get progress percentage for a specific sheet type"""
+        stats = self.sheet_statistics.get(sheet_type, {})
+        total = stats.get("total_records", 0)
+        processed = stats.get("created", 0) + stats.get("updated", 0)
+        if total > 0:
+            return int((processed / total) * 100)
+        return 0
+
+    def get_all_sheet_progress(self):
+        """Get progress for all sheet types"""
+        progress = {}
+        for sheet_type in self.sheet_statistics:
+            progress[sheet_type] = self.get_sheet_progress(sheet_type)
+        return progress
+
     def progress_percentage(self):
         """Calculate progress percentage based on processed records"""
         if self.total_records > 0:
@@ -91,6 +150,80 @@ class DataUpload(TimeStampedModel):
         if self.total_records > 0:
             return int((self.processed_records / self.total_records) * 100)
         return 0
+
+    def update_stage(self, stage_name: str, progress: int = 0):
+        """Update current processing stage and progress"""
+        self.current_stage = stage_name
+        self.stage_progress = min(100, max(0, progress))
+        self.save()
+
+    def complete_stage(self):
+        """Mark current stage as completed and move to next"""
+        self.completed_stages += 1
+        self.stage_progress = 100
+        self.save()
+
+    def get_overall_progress(self) -> int:
+        """Calculate overall progress percentage across all stages"""
+        if self.total_stages == 0:
+            return 0
+        return int((self.completed_stages / self.total_stages) * 100)
+
+    def get_stage_display_name(self) -> str:
+        """Get human-readable stage name"""
+        stage_names = {
+            "pending": "Waiting to start",
+            "extracting": "Extracting data from file",
+            "transforming": "Transforming and cleaning data",
+            "loading": "Loading data to database",
+            "generating_analytics": "Generating consolidated analytics",
+            "completed": "Processing completed",
+            "failed": "Processing failed",
+        }
+        return stage_names.get(self.current_stage, self.current_stage.title())
+
+    def get_data_quality_summary(self) -> dict:
+        """Get comprehensive data quality summary"""
+        if not self.data_quality_metrics:
+            return {}
+
+        summary = {
+            "overall_quality_score": 0,
+            "sheets_analyzed": 0,
+            "total_issues": 0,
+            "critical_issues": 0,
+            "warnings": 0,
+            "sheet_details": {},
+        }
+
+        total_score = 0
+        total_sheets = 0
+
+        for sheet_type, metrics in self.data_quality_metrics.items():
+            sheet_score = metrics.get("quality_score", 0)
+            total_score += sheet_score
+            total_sheets += 1
+
+            summary["total_issues"] += metrics.get("total_issues", 0)
+            summary["critical_issues"] += metrics.get("critical_issues", 0)
+            summary["warnings"] += metrics.get("warnings", 0)
+
+            summary["sheet_details"][sheet_type] = {
+                "quality_score": sheet_score,
+                "record_count": metrics.get("record_count", 0),
+                "valid_records": metrics.get("valid_records", 0),
+                "invalid_records": metrics.get("invalid_records", 0),
+                "completeness": metrics.get("completeness", 0),
+                "accuracy": metrics.get("accuracy", 0),
+                "consistency": metrics.get("consistency", 0),
+                "issues": metrics.get("issues", []),
+            }
+
+        if total_sheets > 0:
+            summary["overall_quality_score"] = round(total_score / total_sheets, 2)
+            summary["sheets_analyzed"] = total_sheets
+
+        return summary
 
 
 class ProcessingError(TimeStampedModel):

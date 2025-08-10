@@ -1,0 +1,164 @@
+{% extends 'restaurant_data/base.html' %}
+{% load static i18n %}
+
+{% block page_title %}{% trans "Purchases" %}{% endblock %}
+
+{% block restaurant_data_content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-shopping-cart me-2"></i>{% trans "Purchases" %}
+            </h1>
+            <a href="{% url 'restaurant_data:purchase_add' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>{% trans "Add Purchase" %}
+            </a>
+        </div>
+
+        <!-- Search Form -->
+        <div class="search-form">
+            <form method="get" class="row g-3">
+                <div class="col-md-8">
+                    <label for="search" class="form-label">{% trans "Search Purchases" %}</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search_query }}" placeholder="{% trans 'Search by product name...' %}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-search me-1"></i>{% trans "Search" %}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Purchases Table -->
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>{% trans "Purchase List" %}</span>
+                    <span class="badge bg-primary">{{ page_obj.paginator.count }} {% trans "purchases" %}</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if purchases %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Date" %}</th>
+                                    <th>{% trans "Product" %}</th>
+                                    <th>{% trans "Quantity" %}</th>
+                                    <th>{% trans "Total Cost" %}</th>
+                                    <th>{% trans "Actions" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for purchase in purchases %}
+                                    <tr>
+                                        <td>
+                                            <span class="fw-semibold">{{ purchase.purchase_date }}</span>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="flex-shrink-0">
+                                                    <i class="fas fa-box text-primary me-2"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <a href="{% url 'restaurant_data:product_detail' purchase.product.id %}" 
+                                                       class="text-decoration-none fw-semibold">
+                                                        {{ purchase.product.name }}
+                                                    </a>
+                                                    <br>
+                                                    <small class="text-muted">{{ purchase.product.purchase_category.name }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="fw-semibold">
+                                                {{ purchase.quantity_purchased }} {{ purchase.product.unit_of_measure.name }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="fw-semibold text-primary">
+                                                {{ purchase.total_cost|floatformat:2 }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="{% url 'restaurant_data:purchase_detail' purchase.id %}" 
+                                                   class="btn btn-outline-primary" 
+                                                   data-bs-toggle="tooltip" title="{% trans 'View Details' %}">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">{% trans "No purchases found" %}</h5>
+                        <p class="text-muted">{% trans "Try adjusting your search criteria or add a new purchase." %}</p>
+                        <a href="{% url 'restaurant_data:purchase_add' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>{% trans "Add First Purchase" %}
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+            <nav aria-label="{% trans 'Purchase pagination' %}" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

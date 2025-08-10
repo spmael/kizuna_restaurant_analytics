@@ -39,4 +39,55 @@ urlpatterns = [
     path("recipes/", views.RecipeListView.as_view(), name="recipe_list"),
     path("recipes/add/", views.RecipeCreateView.as_view(), name="recipe_add"),
     path("recipes/<uuid:pk>/", views.RecipeDetailView.as_view(), name="recipe_detail"),
+    # Category management
+    path(
+        "categories/purchases/",
+        views.PurchasesCategoryListView.as_view(),
+        name="purchases_category_list",
+    ),
+    path(
+        "categories/purchases/add/",
+        views.PurchasesCategoryCreateView.as_view(),
+        name="purchases_category_add",
+    ),
+    path(
+        "categories/sales/",
+        views.SalesCategoryListView.as_view(),
+        name="sales_category_list",
+    ),
+    path(
+        "categories/sales/add/",
+        views.SalesCategoryCreateView.as_view(),
+        name="sales_category_add",
+    ),
+    # Unit of measure management
+    path("units/", views.UnitOfMeasureListView.as_view(), name="unit_of_measure_list"),
+    path(
+        "units/add/",
+        views.UnitOfMeasureCreateView.as_view(),
+        name="unit_of_measure_add",
+    ),
+    # Product consolidation management
+    path(
+        "consolidations/",
+        views.ProductConsolidationListView.as_view(),
+        name="product_consolidation_list",
+    ),
+    path(
+        "consolidations/add/",
+        views.ProductConsolidationCreateView.as_view(),
+        name="product_consolidation_add",
+    ),
+    path(
+        "consolidations/<uuid:pk>/",
+        views.ProductConsolidationDetailView.as_view(),
+        name="product_consolidation_detail",
+    ),
+    # API endpoints
+    path("api/products/", views.get_products_ajax, name="api_products"),
+    path(
+        "api/products/<uuid:product_id>/",
+        views.get_product_details_ajax,
+        name="api_product_details",
+    ),
 ]

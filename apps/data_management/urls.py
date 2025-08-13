@@ -12,6 +12,9 @@ urlpatterns = [
     ),
     path("progress/<uuid:upload_id>/", views.upload_progress, name="upload_progress"),
     path("dashboard/", views.dashboard_stats, name="dashboard"),
+    path(
+        "recent-uploads/", views.recent_uploads_partial, name="recent_uploads_partial"
+    ),
     path("quality/", views.data_quality_report, name="quality_report"),
     path("admin-dashboard/", views.admin_dashboard, name="admin_dashboard"),
 ]

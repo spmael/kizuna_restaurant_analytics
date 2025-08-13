@@ -10,7 +10,7 @@ from .base_transformer import BaseTransformer
 
 
 class OdooDataTransformer(BaseTransformer):
-    """Transfrom and clean Odoo data for restauran analytics"""
+    """Transform and clean Odoo data for restaurant analytics including recipes"""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -47,6 +47,13 @@ class OdooDataTransformer(BaseTransformer):
                 "customer": ["Client"],
                 "cashier": ["Vendeur"],
             },
+            "recipes": {
+                "dish_name": ["Plat", "Dish"],
+                "ingredient": ["Ingrédient", "Ingredient"],
+                "quantity": ["Quantité", "Quantity"],
+                "main_ingredient": ["Principal", "Main"],
+                "unit_of_recipe": ["Unité", "Unit"],
+            },
         }
 
     def transform(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
@@ -77,6 +84,8 @@ class OdooDataTransformer(BaseTransformer):
             return self._transform_purchases(df)
         elif sheet_type == "sales":
             return self._transform_sales(df)
+        elif sheet_type == "recipes":
+            return self._transform_recipes(df)
         else:
             self.log_warning(f"Unknown sheet type: {sheet_type}")
             return df
@@ -152,7 +161,7 @@ class OdooDataTransformer(BaseTransformer):
                     )
                     cost_per_unit = 0
 
-                transformed_df.at[idx, "current_cost_per_unit"] = cost_per_unit
+                transformed_df.at[idx, "current_cost_per_unit"] = float(cost_per_unit)
 
                 # Clean selling price
                 selling_price = self._clean_decimal(row["current_selling_price"])
@@ -165,7 +174,7 @@ class OdooDataTransformer(BaseTransformer):
                     )
                     selling_price = 0
 
-                transformed_df.at[idx, "current_selling_price"] = selling_price
+                transformed_df.at[idx, "current_selling_price"] = float(selling_price)
 
                 # Set default purchase category if missing
                 if (
@@ -195,15 +204,15 @@ class OdooDataTransformer(BaseTransformer):
                 if current_stock is None:
                     current_stock = 0
 
-                transformed_df.at[idx, "current_stock"] = current_stock
+                transformed_df.at[idx, "current_stock"] = int(current_stock)
 
             except Exception as e:
                 self.log_warning(
                     f"Error processing product row {idx + 1}: {str(e)}, continuing with defaults"
                 )
                 # Set defaults for this row instead of skipping
-                transformed_df.at[idx, "current_cost_per_unit"] = 0
-                transformed_df.at[idx, "current_selling_price"] = 0
+                transformed_df.at[idx, "current_cost_per_unit"] = 0.0
+                transformed_df.at[idx, "current_selling_price"] = 0.0
                 transformed_df.at[idx, "current_stock"] = 0
                 transformed_df.at[idx, "unit_of_measure"] = "unit"
 
@@ -285,7 +294,7 @@ class OdooDataTransformer(BaseTransformer):
                     )
                     continue
 
-                transformed_df.at[idx, "quantity_purchased"] = quantity
+                transformed_df.at[idx, "quantity_purchased"] = int(quantity)
 
                 # Clean total
                 total = self._clean_decimal(row["total_cost"])
@@ -293,7 +302,7 @@ class OdooDataTransformer(BaseTransformer):
                     self.log_error(f"Invalid total: {row['total_cost']}", idx + 1)
                     continue
 
-                transformed_df.at[idx, "total_cost"] = total
+                transformed_df.at[idx, "total_cost"] = float(total)
             except Exception as e:
                 self.log_error(
                     f"Error processing purchase row {idx + 1}: {str(e)}", idx + 1
@@ -565,7 +574,7 @@ class OdooDataTransformer(BaseTransformer):
                     )
                     continue
 
-                transformed_df.at[idx, "quantity_sold"] = quantity_sold
+                transformed_df.at[idx, "quantity_sold"] = float(quantity_sold)
 
                 unit_sale_price = self._clean_decimal(row["unit_sale_price"])
                 if unit_sale_price is None or unit_sale_price <= 0:
@@ -574,18 +583,18 @@ class OdooDataTransformer(BaseTransformer):
                     )
                     continue
 
-                transformed_df.at[idx, "unit_sale_price"] = unit_sale_price
+                transformed_df.at[idx, "unit_sale_price"] = float(unit_sale_price)
 
                 # Calculate total sale price
                 if "total_sale_price" not in df.columns or pd.isna(
                     row["total_sale_price"]
                 ):
-                    transformed_df.at[idx, "total_sale_price"] = (
+                    transformed_df.at[idx, "total_sale_price"] = float(
                         quantity_sold * unit_sale_price
                     )
                 else:
                     total_sale_price = self._clean_decimal(row["total_sale_price"])
-                    transformed_df.at[idx, "total_sale_price"] = (
+                    transformed_df.at[idx, "total_sale_price"] = float(
                         total_sale_price or quantity_sold * unit_sale_price
                     )
 
@@ -816,49 +825,6 @@ class OdooDataTransformer(BaseTransformer):
 
         return cleaned_name.strip()
 
-
-class RecipeDataTransformer(BaseTransformer):
-    """Transform and clean recipe data for restaurant analytics"""
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        # Column mappings for different language and format
-        self.column_mappings = {
-            "recipes": {
-                "dish_name": ["Plat"],
-                "ingredient": ["Ingrédient"],
-                "quantity": ["Quantité"],
-                "main_ingredient": ["Principal"],
-                "unit_of_recipe": ["Unité"],
-            },
-        }
-
-    def transform(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
-        """Transform and clean all sheets"""
-
-        transformed_data = {}
-
-        for sheet_type, df in data.items():
-            if df is not None and not df.empty:
-                try:
-                    transformed_df = self._transform_sheet(df, sheet_type)
-                    if transformed_df is not None and not transformed_df.empty:
-                        transformed_data[sheet_type] = transformed_df
-                except Exception as e:
-                    self.log_error(f"Error transforming {sheet_type} sheet: {str(e)}")
-
-        return transformed_data
-
-    def _transform_sheet(self, df: pd.DataFrame, sheet_type: str) -> pd.DataFrame:
-        """Transform individual sheet"""
-
-        if sheet_type == "recipes":
-            return self._transform_recipes(df)
-        else:
-            self.log_warning(f"Unknown sheet type: {sheet_type}")
-            return df
-
     def _transform_recipes(self, df: pd.DataFrame) -> pd.DataFrame:
         """Transform recipes sheet"""
 
@@ -936,55 +902,6 @@ class RecipeDataTransformer(BaseTransformer):
         transformed_df = transformed_df[required_columns]
 
         return transformed_df
-
-    def _map_columns(self, df: pd.DataFrame, sheet_type: str) -> pd.DataFrame:
-        """Map DataFrames to standard column names"""
-
-        if sheet_type not in self.column_mappings:
-            return df
-
-        # Get column mappings for this sheet
-        column_map = {}
-        mappings = self.column_mappings[sheet_type]
-
-        # Rename columns
-        for standard_name, possible_names in mappings.items():
-            for col in possible_names:
-                if col in df.columns:
-                    column_map[col] = standard_name
-                    break
-
-        # Rename columns
-        if column_map:
-            df = df.rename(columns=column_map)
-
-        return df
-
-    def _clean_decimal(self, value):
-        """Clean and convert value to decimal"""
-
-        if pd.isna(value):
-            return None
-
-        try:
-            # Convert to string
-            str_value = str(value).strip()
-
-            # Remove non-numeric characters
-            str_value = re.sub(r"[^0-9.]", "", str_value)
-
-            # Handle different decimal separators
-            str_value = str_value.replace(",", ".")
-
-            # Remove extra dots (keep only the last one)
-            parts = str_value.split(".")
-            if len(parts) > 2:
-                str_value = ".".join(parts[:-1]) + "." + parts[-1]
-
-            return Decimal(str_value)
-
-        except (InvalidOperation, ValueError):
-            return None
 
     def _clean_boolean(self, value):
         """Clean and convert value to boolean"""

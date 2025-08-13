@@ -1,15 +1,13 @@
-from django.http import HttpResponse
 from django.urls import path
 
-
-def temporary_recipes_list_view(request):
-    """Temporary recipes list view for testing."""
-    return HttpResponse("Recipes functionality coming soon!")
-
+from . import views
 
 app_name = "recipes"
 
 urlpatterns = [
-    path("list/", temporary_recipes_list_view, name="list"),
-    # TODO: Add more recipes URLs
+    path("", views.RecipeListView.as_view(), name="recipe_list"),
+    path("create/", views.RecipeCreateView.as_view(), name="recipe_create"),
+    path("<int:pk>/", views.RecipeDetailView.as_view(), name="recipe_detail"),
+    path("<int:pk>/update/", views.RecipeUpdateView.as_view(), name="recipe_update"),
+    path("<int:pk>/delete/", views.RecipeDeleteView.as_view(), name="recipe_delete"),
 ]

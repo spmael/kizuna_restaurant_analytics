@@ -1,0 +1,73 @@
+{% extends "base/base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "Delete Recipe" %} - Kizuna Restaurant Analytics{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h4 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% trans "Confirm Deletion" %}
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h5 class="alert-heading">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        {% trans "Warning!" %}
+                    </h5>
+                    <p class="mb-0">
+                        {% trans "Are you sure you want to delete the recipe" %} 
+                        <strong>"{{ object.dish_name }}"</strong>?
+                    </p>
+                </div>
+
+                <div class="recipe-info mb-4">
+                    <h6>{% trans "Recipe Details:" %}</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>{% trans "Name" %}:</strong> {{ object.dish_name }}</li>
+                        {% if object.description %}
+                            <li><strong>{% trans "Description" %}:</strong> {{ object.description|truncatewords:20 }}</li>
+                        {% endif %}
+                        {% if object.ingredients.count %}
+                            <li><strong>{% trans "Ingredients" %}:</strong> {{ object.ingredients.count }}</li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'recipes:recipe_detail' object.pk %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            {% trans "Cancel" %}
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash me-2"></i>
+                            {% trans "Delete Recipe" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.recipe-info {
+    background-color: var(--light-bg);
+    padding: 1rem;
+    border-radius: 0.375rem;
+    border-left: 4px solid var(--warning-color);
+}
+
+.recipe-info ul li {
+    margin-bottom: 0.5rem;
+}
+</style>
+{% endblock %}

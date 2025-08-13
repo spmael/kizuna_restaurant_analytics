@@ -1,0 +1,306 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Cost Analytics" %} - Kizuna Analytics{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-0">💰 {% trans "Cost Analytics" %}</h1>
+                <p class="text-muted">{% trans "Last 30 days cost and profitability analysis" %}</p>
+            </div>
+            <div>
+                <a href="{% url 'analytics:dashboard' %}" class="btn btn-outline-secondary mr-2">
+                    {% trans "Dashboard" %}
+                </a>
+                <a href="{% url 'analytics:sales' %}" class="btn btn-outline-primary">
+                    {% trans "Sales Analytics" %}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cost Summary Cards -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            {% trans "Total Food Cost" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ cost_totals.total_food_cost|floatformat:0|default:"0" }} FCFA
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-utensils fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            {% trans "Gross Profit" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ cost_totals.total_gross_profit|floatformat:0|default:"0" }} FCFA
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            {% trans "Avg Food Cost %" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ cost_totals.avg_food_cost_pct|floatformat:1|default:"0" }}%
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-percentage fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            {% trans "Profit Margin" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {% if cost_totals.avg_food_cost_pct %}
+                                {{ 100|add:"-"|add:cost_totals.avg_food_cost_pct|floatformat:1 }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-chart-pie fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Cost Trend Chart -->
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">{% trans "30-Day Cost & Profit Trend" %}</h6>
+            </div>
+            <div class="card-body">
+                {% if daily_summaries %}
+                <canvas id="costTrendChart" width="400" height="100"></canvas>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">{% trans "No data available" %}</h5>
+                    <p class="text-muted">{% trans "Calculate daily statistics first" %}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Cost Summary Table -->
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">{% trans "Recent Cost Summary" %}</h6>
+            </div>
+            <div class="card-body">
+                {% if daily_summaries %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Date" %}</th>
+                                    <th>{% trans "Food Cost %" %}</th>
+                                    <th>{% trans "Profit" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for summary in daily_summaries|slice:":7" %}
+                                <tr>
+                                    <td>{{ summary.date|date:"d/m" }}</td>
+                                    <td>{{ summary.food_cost_percentage|floatformat:1 }}%</td>
+                                    <td>{{ summary.gross_profit|floatformat:0 }} FCFA</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-table fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">{% trans "No cost data available" %}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cost Analysis Insights -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">{% trans "Cost Analysis Insights" %}</h6>
+            </div>
+            <div class="card-body">
+                {% if cost_totals.avg_food_cost_pct %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">{% trans "Food Cost Performance" %}</h6>
+                            {% if cost_totals.avg_food_cost_pct <= 30 %}
+                                <div class="alert alert-success">
+                                    <i class="fas fa-check-circle"></i>
+                                    <strong>{% trans "Excellent!" %}</strong> {% trans "Your food cost percentage is very good at" %} {{ cost_totals.avg_food_cost_pct|floatformat:1 }}%.
+                                </div>
+                            {% elif cost_totals.avg_food_cost_pct <= 35 %}
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <strong>{% trans "Good" %}</strong> {% trans "Your food cost percentage is acceptable at" %} {{ cost_totals.avg_food_cost_pct|floatformat:1 }}%.
+                                </div>
+                            {% else %}
+                                <div class="alert alert-danger">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    <strong>{% trans "Attention Needed" %}</strong> {% trans "Your food cost percentage is high at" %} {{ cost_totals.avg_food_cost_pct|floatformat:1 }}%.
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-primary">{% trans "Profitability" %}</h6>
+                            {% if cost_totals.total_gross_profit > 0 %}
+                                <div class="alert alert-success">
+                                    <i class="fas fa-chart-line"></i>
+                                    <strong>{% trans "Profitable" %}</strong> {% trans "Your gross profit is" %} {{ cost_totals.total_gross_profit|floatformat:0 }} FCFA.
+                                </div>
+                            {% else %}
+                                <div class="alert alert-danger">
+                                    <i class="fas fa-chart-line-down"></i>
+                                    <strong>{% trans "Loss" %}</strong> {% trans "You are operating at a loss of" %} {{ cost_totals.total_gross_profit|floatformat:0 }} FCFA.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-chart-pie fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">{% trans "No cost data available" %}</h5>
+                        <p class="text-muted">{% trans "Calculate daily statistics to see cost insights" %}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if daily_summaries %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Cost trend chart
+const ctx = document.getElementById('costTrendChart').getContext('2d');
+const costTrendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [
+            {% for summary in daily_summaries %}
+                '{{ summary.date|date:"d/m" }}'{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ],
+        datasets: [{
+            label: '{% trans "Food Cost %" %}',
+            data: [
+                {% for summary in daily_summaries %}
+                    {{ summary.food_cost_percentage|default:0 }}{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            tension: 0.1,
+            yAxisID: 'y'
+        }, {
+            label: '{% trans "Gross Profit (FCFA)" %}',
+            data: [
+                {% for summary in daily_summaries %}
+                    {{ summary.gross_profit|default:0 }}{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+            tension: 0.1,
+            yAxisID: 'y1'
+        }]
+    },
+    options: {
+        responsive: true,
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        },
+        scales: {
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                beginAtZero: true,
+                max: 100,
+                ticks: {
+                    callback: function(value) {
+                        return value + '%';
+                    }
+                }
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                beginAtZero: true,
+                grid: {
+                    drawOnChartArea: false,
+                },
+                ticks: {
+                    callback: function(value) {
+                        return value.toLocaleString() + ' FCFA';
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

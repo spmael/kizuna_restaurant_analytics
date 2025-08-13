@@ -134,8 +134,9 @@ def upload_progress(request, upload_id):
 
 @login_required
 def dashboard_stats(request):
-    """Dasboard statistics for data management"""
+    """Dashboard statistics for data management"""
 
+    # Get user's uploads
     user_uploads = DataUpload.objects.filter(uploaded_by=request.user)
 
     stats = {
@@ -152,6 +153,21 @@ def dashboard_stats(request):
         request,
         "data_management/dashboard_stats.html",
         {"stats": stats, "recent_uploads": recent_uploads},
+    )
+
+
+@login_required
+def recent_uploads_partial(request):
+    """Return only recent uploads data for HTMX loading"""
+
+    # Get user's recent uploads
+    user_uploads = DataUpload.objects.filter(uploaded_by=request.user)
+    recent_uploads = user_uploads.order_by("-created_at")[:5]
+
+    return render(
+        request,
+        "data_management/recent_uploads_partial.html",
+        {"recent_uploads": recent_uploads},
     )
 
 
@@ -259,7 +275,8 @@ def data_quality_report(request):
     """Data quality overview"""
 
     # Local import for restaurant_data app models avoiding circular import
-    from apps.restaurant_data.models import Product, Purchase, Recipe, Sales
+    from apps.recipes.models import Recipe
+    from apps.restaurant_data.models import Product, Purchase, Sales
 
     # Get comprehensive quality metrics from recent uploads
     recent_uploads = (

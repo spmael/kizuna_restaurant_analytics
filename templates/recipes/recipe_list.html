@@ -1,0 +1,199 @@
+{% extends "base/base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "Recipes" %} - Kizuna Restaurant Analytics{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2 mb-0">
+                <i class="fas fa-utensils me-2"></i>
+                {% trans "Recipes" %}
+            </h1>
+            <a href="{% url 'recipes:recipe_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>
+                {% trans "Add Recipe" %}
+            </a>
+        </div>
+
+        <!-- Search and Filter Section -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-8">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="search" 
+                                   value="{{ search_query }}" 
+                                   placeholder="{% trans 'Search recipes...' %}">
+                            <button class="btn btn-outline-secondary" type="submit">
+                                {% trans "Search" %}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{% url 'recipes:recipe_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>
+                            {% trans "Clear" %}
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Recipes List -->
+        {% if recipes %}
+            <div class="row">
+                {% for recipe in recipes %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100 recipe-card">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <a href="{% url 'recipes:recipe_detail' recipe.pk %}" class="text-decoration-none">
+                                        {{ recipe.dish_name }}
+                                    </a>
+                                </h5>
+                                {% if recipe.description %}
+                                    <p class="card-text text-muted small">
+                                        {{ recipe.description|truncatewords:20 }}
+                                    </p>
+                                {% endif %}
+                                
+                                <div class="recipe-meta">
+                                    {% if recipe.ingredients.count %}
+                                        <span class="badge bg-info me-2">
+                                            <i class="fas fa-list me-1"></i>
+                                            {{ recipe.ingredients.count }} {% trans "ingredients" %}
+                                        </span>
+                                    {% endif %}
+                                    
+                                    {% if recipe.preparation_time %}
+                                        <span class="badge bg-warning me-2">
+                                            <i class="fas fa-clock me-1"></i>
+                                            {{ recipe.preparation_time }} {% trans "min" %}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <div class="btn-group w-100" role="group">
+                                    <a href="{% url 'recipes:recipe_detail' recipe.pk %}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye me-1"></i>
+                                        {% trans "View" %}
+                                    </a>
+                                    <a href="{% url 'recipes:recipe_update' recipe.pk %}" 
+                                       class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-edit me-1"></i>
+                                        {% trans "Edit" %}
+                                    </a>
+                                    <a href="{% url 'recipes:recipe_delete' recipe.pk %}" 
+                                       class="btn btn-outline-danger btn-sm">
+                                        <i class="fas fa-trash me-1"></i>
+                                        {% trans "Delete" %}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+                <nav aria-label="{% trans 'Recipe pagination' %}">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}">
+                                    <i class="fas fa-angle-double-left"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                    <i class="fas fa-angle-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+
+                        <li class="page-item active">
+                            <span class="page-link">
+                                {% trans "Page" %} {{ page_obj.number }} {% trans "of" %} {{ page_obj.paginator.num_pages }}
+                            </span>
+                        </li>
+
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                    <i class="fas fa-angle-right"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                    <i class="fas fa-angle-double-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+
+        {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-5">
+                <div class="empty-state">
+                    <i class="fas fa-utensils fa-3x text-muted mb-3"></i>
+                    <h3 class="text-muted">{% trans "No recipes found" %}</h3>
+                    <p class="text-muted">
+                        {% if search_query %}
+                            {% trans "No recipes match your search criteria." %}
+                        {% else %}
+                            {% trans "Get started by creating your first recipe." %}
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'recipes:recipe_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>
+                        {% trans "Create Recipe" %}
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.recipe-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border: 1px solid var(--border-color);
+}
+
+.recipe-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.recipe-card .card-title a {
+    color: var(--primary-color);
+}
+
+.recipe-card .card-title a:hover {
+    color: var(--primary-dark);
+}
+
+.recipe-meta {
+    margin-top: 1rem;
+}
+
+.empty-state {
+    max-width: 400px;
+    margin: 0 auto;
+}
+</style>
+{% endblock %}

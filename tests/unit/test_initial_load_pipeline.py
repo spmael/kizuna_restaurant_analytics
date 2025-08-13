@@ -64,7 +64,10 @@ class TestDataProcessingPipeline(TestCase):
         mock_extractor_class.return_value = mock_extractor
 
         mock_transformer = Mock()
-        mock_transformer.transform.return_value = {"transformed_data": "test"}
+        # Create a proper mock DataFrame
+        mock_df = Mock()
+        mock_df.shape = (5, 3)
+        mock_transformer.transform.return_value = {"transformed_data": mock_df}
         mock_transformer.errors = []
         mock_transformer.warnings = []
         mock_transformer_class.return_value = mock_transformer
@@ -151,7 +154,10 @@ class TestDataProcessingPipeline(TestCase):
         mock_extractor_class.return_value = mock_extractor
 
         mock_transformer = Mock()
-        mock_transformer.transform.return_value = {"transformed_data": "test"}
+        # Create a proper mock DataFrame
+        mock_df = Mock()
+        mock_df.shape = (5, 3)
+        mock_transformer.transform.return_value = {"transformed_data": mock_df}
         mock_transformer.errors = []
         mock_transformer.warnings = []
         mock_transformer_class.return_value = mock_transformer
@@ -237,7 +243,10 @@ class TestDataProcessingPipeline(TestCase):
             "data_engineering.pipelines.initial_load_pipeline.OdooDataTransformer"
         ) as mock_transformer_class:
             mock_transformer = Mock()
-            mock_transformer.transform.return_value = {"transformed_products": "data"}
+            # Create a proper mock DataFrame
+            mock_df = Mock()
+            mock_df.shape = (5, 3)
+            mock_transformer.transform.return_value = {"transformed_products": mock_df}
             mock_transformer.errors = []
             mock_transformer.warnings = ["Some data was cleaned"]
             mock_transformer_class.return_value = mock_transformer
@@ -259,7 +268,10 @@ class TestDataProcessingPipeline(TestCase):
             "data_engineering.pipelines.initial_load_pipeline.RecipeDataTransformer"
         ) as mock_transformer_class:
             mock_transformer = Mock()
-            mock_transformer.transform.return_value = {"transformed_recipes": "data"}
+            # Create a proper mock DataFrame
+            mock_df = Mock()
+            mock_df.shape = (5, 3)
+            mock_transformer.transform.return_value = {"transformed_recipes": mock_df}
             mock_transformer.errors = []
             mock_transformer.warnings = []
             mock_transformer_class.return_value = mock_transformer
@@ -272,7 +284,10 @@ class TestDataProcessingPipeline(TestCase):
 
     def test_load_data_with_odoo_export(self):
         """Test data loading for Odoo export files"""
-        transformed_data = {"transformed_products": "data"}
+        # Create a proper mock DataFrame
+        mock_df = Mock()
+        mock_df.shape = (5, 3)
+        transformed_data = {"transformed_products": mock_df}
 
         with patch(
             "data_engineering.pipelines.initial_load_pipeline.RestaurantDataLoader"
@@ -300,7 +315,10 @@ class TestDataProcessingPipeline(TestCase):
         self.upload.file_type = "recipes_data"
         self.upload.save()
 
-        transformed_data = {"transformed_recipes": "data"}
+        # Create a proper mock DataFrame
+        mock_df = Mock()
+        mock_df.shape = (5, 3)
+        transformed_data = {"transformed_recipes": mock_df}
 
         with patch(
             "data_engineering.pipelines.initial_load_pipeline.RecipeDataLoader"
@@ -396,7 +414,10 @@ class TestDataProcessingPipeline(TestCase):
                 "data_engineering.pipelines.initial_load_pipeline.OdooDataTransformer"
             ) as mock_transformer_class:
                 mock_transformer = Mock()
-                mock_transformer.transform.return_value = {"transformed_data": "test"}
+                # Create a proper mock DataFrame
+                mock_df = Mock()
+                mock_df.shape = (5, 3)
+                mock_transformer.transform.return_value = {"transformed_data": mock_df}
                 mock_transformer.errors = []
                 mock_transformer.warnings = []
                 mock_transformer_class.return_value = mock_transformer

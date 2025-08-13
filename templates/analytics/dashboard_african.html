@@ -1,0 +1,568 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Restaurant Analytics Dashboard" %} - Kizuna Analytics{% endblock %}
+
+{% block body_class %}dashboard-body{% endblock %}
+
+{% block content %}
+<!-- Dashboard Navigation -->
+{% include "analytics/dashboard_nav.html" %}
+
+<div class="dashboard-container">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="dashboard-title">
+                    <i class="fas fa-chart-line text-primary me-3"></i>
+                    {% trans "Restaurant Analytics Dashboard" %}
+                </h1>
+                <p class="dashboard-subtitle">
+                    {% blocktrans %}Performance insights for {{ date_range.start|date:"M d" }} to {{ date_range.end|date:"M d, Y" }}{% endblocktrans %}
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <label class="filter-label me-2">{% trans "Date Range:" %}</label>
+                        <select id="dateRangePicker" class="filter-select">
+                            <option value="7">{% trans "Last 7 Days" %}</option>
+                            <option value="30">{% trans "Last 30 Days" %}</option>
+                            <option value="90">{% trans "Last 90 Days" %}</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Performance Indicators -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="metric-card primary">
+                <div class="metric-icon primary">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <div class="metric-label">{% trans "Total Revenue" %}</div>
+                <div class="metric-value">
+                    {% if week_totals.total_sales %}
+                        {{ week_totals.total_sales|floatformat:0|default:"0" }} FCFA
+                    {% else %}
+                        0 FCFA
+                    {% endif %}
+                </div>
+                <div class="metric-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>+12.5%</span>
+                    <small>{% trans "vs last week" %}</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="metric-card success">
+                <div class="metric-icon success">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <div class="metric-label">{% trans "Total Orders" %}</div>
+                <div class="metric-value">
+                    {{ week_totals.total_orders|default:"0" }}
+                </div>
+                <div class="metric-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>+8.3%</span>
+                    <small>{% trans "vs last week" %}</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="metric-card warning">
+                <div class="metric-icon warning">
+                    <i class="fas fa-percentage"></i>
+                </div>
+                <div class="metric-label">{% trans "Food Cost %" %}</div>
+                <div class="metric-value">
+                    {{ week_totals.avg_food_cost_pct|floatformat:1|default:"0" }}%
+                </div>
+                <div class="metric-change neutral">
+                    <i class="fas fa-minus"></i>
+                    <span>0.0%</span>
+                    <small>{% trans "vs last week" %}</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="metric-card info">
+                <div class="metric-icon info">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="metric-label">{% trans "Avg Order Value" %}</div>
+                <div class="metric-value">
+                    {% if yesterday and yesterday.average_order_value %}
+                        {{ yesterday.average_order_value|floatformat:0 }} FCFA
+                    {% else %}
+                        0 FCFA
+                    {% endif %}
+                </div>
+                <div class="metric-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>+5.2%</span>
+                    <small>{% trans "vs last week" %}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="row mb-4">
+        <!-- Revenue Trend Chart -->
+        <div class="col-lg-8 mb-4">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">{% trans "Revenue Trend" %}</h3>
+                    <div class="chart-actions">
+                        <button class="btn-african btn-african-outline chart-toggle" data-chart-id="revenue-chart" data-chart-type="Revenue">
+                            <i class="fas fa-chart-line"></i>
+                            {% trans "Line" %}
+                        </button>
+                        <button class="btn-african btn-african-outline chart-toggle" data-chart-id="revenue-chart" data-chart-type="Bar">
+                            <i class="fas fa-chart-bar"></i>
+                            {% trans "Bar" %}
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="revenueChart" data-chart-type="Revenue" data-chart-id="revenue-chart"></canvas>
+                    <div class="loading-overlay" style="display: none;">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sales by Category -->
+        <div class="col-lg-4 mb-4">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">{% trans "Sales by Category" %}</h3>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="categoryChart" data-chart-type="Category" data-chart-id="category-chart"></canvas>
+                    <div class="loading-overlay" style="display: none;">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="row mb-4">
+        <!-- Peak Hours Chart -->
+        <div class="col-lg-6 mb-4">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">{% trans "Peak Hours" %}</h3>
+                    <div class="chart-actions">
+                        <button class="btn-african btn-african-outline chart-toggle" data-chart-id="peak-hours-chart" data-chart-type="PeakHours">
+                            <i class="fas fa-chart-bar"></i>
+                            {% trans "Bar" %}
+                        </button>
+                        <button class="btn-african btn-african-outline chart-toggle" data-chart-id="peak-hours-chart" data-chart-type="Line">
+                            <i class="fas fa-chart-line"></i>
+                            {% trans "Line" %}
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="peakHoursChart" data-chart-type="PeakHours" data-chart-id="peak-hours-chart"></canvas>
+                    <div class="loading-overlay" style="display: none;">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Customer Flow Chart -->
+        <div class="col-lg-6 mb-4">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">{% trans "Customer Flow" %}</h3>
+                    <div class="chart-actions">
+                        <button class="btn-african btn-african-outline chart-toggle" data-chart-id="customer-flow-chart" data-chart-type="CustomerFlow">
+                            <i class="fas fa-chart-area"></i>
+                            {% trans "Area" %}
+                        </button>
+                        <button class="btn-african btn-african-outline chart-toggle" data-chart-id="customer-flow-chart" data-chart-type="Line">
+                            <i class="fas fa-chart-line"></i>
+                            {% trans "Line" %}
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="customerFlowChart" data-chart-type="CustomerFlow" data-chart-id="customer-flow-chart"></canvas>
+                    <div class="loading-overlay" style="display: none;">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Insights and Actions -->
+    <div class="row">
+        <!-- Top Products -->
+        <div class="col-lg-6 mb-4">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">{% trans "Yesterday's Top Products" %}</h3>
+                </div>
+                <div class="data-table-container">
+                    {% if top_products %}
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Product" %}</th>
+                                    <th>{% trans "Revenue" %}</th>
+                                    <th>{% trans "Quantity" %}</th>
+                                    <th>{% trans "Status" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in top_products %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ product.product__name }}</strong>
+                                    </td>
+                                    <td>{{ product.total_revenue|floatformat:0 }} FCFA</td>
+                                    <td>{{ product.total_quantity }}</td>
+                                    <td>
+                                        <span class="status-badge success">{% trans "Top Seller" %}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-utensils fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">{% trans "No product data available" %}</h5>
+                            <p class="text-muted">{% trans "Product sales data will appear here" %}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="col-lg-6 mb-4">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">{% trans "Quick Actions" %}</h3>
+                </div>
+                <div class="p-african-lg">
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <a href="{% url 'analytics:sales' %}" class="btn-african btn-african-primary w-100">
+                                <i class="fas fa-chart-bar"></i>
+                                {% trans "Sales Details" %}
+                            </a>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <a href="{% url 'analytics:costs' %}" class="btn-african btn-african-secondary w-100">
+                                <i class="fas fa-calculator"></i>
+                                {% trans "Cost Analysis" %}
+                            </a>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <a href="{% url 'analytics:recipe_costing' %}" class="btn-african btn-african-outline w-100">
+                                <i class="fas fa-utensils"></i>
+                                {% trans "Recipe Costing" %}
+                            </a>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <a href="{% url 'analytics:performance' %}" class="btn-african btn-african-outline w-100">
+                                <i class="fas fa-trophy"></i>
+                                {% trans "Performance" %}
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Performance Alert -->
+                    {% if yesterday and yesterday.food_cost_percentage > 35 %}
+                    <div class="alert-african warning mt-3">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div>
+                            <strong>{% trans "High Food Cost Alert!" %}</strong><br>
+                            {% trans "Food cost is" %} {{ yesterday.food_cost_percentage|floatformat:1 }}% - {% trans "above recommended 35%" %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if yesterday and yesterday.food_cost_percentage <= 30 %}
+                    <div class="alert-african success mt-3">
+                        <i class="fas fa-check-circle"></i>
+                        <div>
+                            <strong>{% trans "Excellent Food Cost!" %}</strong><br>
+                            {% trans "Food cost is" %} {{ yesterday.food_cost_percentage|floatformat:1 }}% - {% trans "within optimal range" %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Initialize charts when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Revenue Chart
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    const revenueChart = new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: [
+                {% for summary in recent_summaries %}
+                    '{{ summary.date|date:"d/m" }}'{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                label: '{% trans "Revenue (FCFA)" %}',
+                data: [
+                    {% for summary in recent_summaries %}
+                        {{ summary.total_sales|default:0 }}{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                borderColor: '#E07A5F',
+                backgroundColor: 'rgba(224, 122, 95, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        fontFamily: 'Inter, sans-serif',
+                        color: '#6C757D',
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#FFFFFF',
+                    titleColor: '#343A40',
+                    bodyColor: '#6C757D',
+                    borderColor: '#E07A5F',
+                    borderWidth: 1,
+                    cornerRadius: 8
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(224, 122, 95, 0.1)'
+                    },
+                    ticks: {
+                        color: '#6C757D',
+                        fontFamily: 'Inter, sans-serif'
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(224, 122, 95, 0.1)'
+                    },
+                    ticks: {
+                        color: '#6C757D',
+                        fontFamily: 'Inter, sans-serif',
+                        callback: function(value) {
+                            return value.toLocaleString() + ' FCFA';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Category Chart
+    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    const categoryChart = new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['{% trans "Main Dishes" %}', '{% trans "Appetizers" %}', '{% trans "Drinks" %}', '{% trans "Desserts" %}'],
+            datasets: [{
+                label: '{% trans "Sales by Category" %}',
+                data: [45, 25, 20, 10],
+                backgroundColor: ['#E07A5F', '#F2B670', '#6B8E3D', '#81654F'],
+                borderColor: '#FFFFFF',
+                borderWidth: 2,
+                cutout: '60%'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        fontFamily: 'Inter, sans-serif',
+                        color: '#6C757D',
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#FFFFFF',
+                    titleColor: '#343A40',
+                    bodyColor: '#6C757D',
+                    borderColor: '#E07A5F',
+                    borderWidth: 1,
+                    cornerRadius: 8
+                }
+            }
+        }
+    });
+
+    // Peak Hours Chart
+    const peakHoursCtx = document.getElementById('peakHoursChart').getContext('2d');
+    const peakHoursChart = new Chart(peakHoursCtx, {
+        type: 'bar',
+        data: {
+            labels: ['6AM', '9AM', '12PM', '3PM', '6PM', '9PM'],
+            datasets: [{
+                label: '{% trans "Orders" %}',
+                data: [5, 15, 45, 20, 60, 35],
+                backgroundColor: '#F2B670',
+                borderColor: '#F2B670',
+                borderWidth: 0,
+                borderRadius: 4,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        fontFamily: 'Inter, sans-serif',
+                        color: '#6C757D',
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#FFFFFF',
+                    titleColor: '#343A40',
+                    bodyColor: '#6C757D',
+                    borderColor: '#E07A5F',
+                    borderWidth: 1,
+                    cornerRadius: 8
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(224, 122, 95, 0.1)'
+                    },
+                    ticks: {
+                        color: '#6C757D',
+                        fontFamily: 'Inter, sans-serif'
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(224, 122, 95, 0.1)'
+                    },
+                    ticks: {
+                        color: '#6C757D',
+                        fontFamily: 'Inter, sans-serif'
+                    }
+                }
+            }
+        }
+    });
+
+    // Customer Flow Chart
+    const customerFlowCtx = document.getElementById('customerFlowChart').getContext('2d');
+    const customerFlowChart = new Chart(customerFlowCtx, {
+        type: 'line',
+        data: {
+            labels: ['6AM', '9AM', '12PM', '3PM', '6PM', '9PM'],
+            datasets: [{
+                label: '{% trans "Customers" %}',
+                data: [10, 30, 90, 40, 120, 70],
+                borderColor: '#6B8E3D',
+                backgroundColor: 'rgba(107, 142, 61, 0.3)',
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        fontFamily: 'Inter, sans-serif',
+                        color: '#6C757D',
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#FFFFFF',
+                    titleColor: '#343A40',
+                    bodyColor: '#6C757D',
+                    borderColor: '#E07A5F',
+                    borderWidth: 1,
+                    cornerRadius: 8
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(224, 122, 95, 0.1)'
+                    },
+                    ticks: {
+                        color: '#6C757D',
+                        fontFamily: 'Inter, sans-serif'
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(224, 122, 95, 0.1)'
+                    },
+                    ticks: {
+                        color: '#6C757D',
+                        fontFamily: 'Inter, sans-serif'
+                    }
+                }
+            }
+        }
+    });
+
+    // Store charts for later access
+    window.dashboardCharts = {
+        revenue: revenueChart,
+        category: categoryChart,
+        peakHours: peakHoursChart,
+        customerFlow: customerFlowChart
+    };
+});
+</script>
+{% endblock %}

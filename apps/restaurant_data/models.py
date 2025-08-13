@@ -95,19 +95,19 @@ class Product(AuditModel):
     # Price
     current_selling_price = models.DecimalField(
         _("Current Selling Price"),
-        max_digits=10,
+        max_digits=15,
         decimal_places=2,
         validators=[MinValueValidator(Decimal("0.01"))],
     )
     current_cost_per_unit = models.DecimalField(
         _("Current Cost Per Unit"),
-        max_digits=10,
+        max_digits=15,
         decimal_places=2,
         validators=[MinValueValidator(Decimal("0.01"))],
     )
 
     # Stock
-    current_stock = models.DecimalField(_("Stock"), max_digits=10, decimal_places=2)
+    current_stock = models.DecimalField(_("Stock"), max_digits=15, decimal_places=2)
 
     # Description
     description = models.TextField(_("Description"), blank=True)
@@ -133,9 +133,9 @@ class Purchase(AuditModel):
         Product, on_delete=models.CASCADE, related_name="purchases"
     )
     quantity_purchased = models.DecimalField(
-        _("Quantity Purchased"), max_digits=10, decimal_places=2
+        _("Quantity Purchased"), max_digits=15, decimal_places=2
     )
-    total_cost = models.DecimalField(_("Total Cost"), max_digits=10, decimal_places=2)
+    total_cost = models.DecimalField(_("Total Cost"), max_digits=15, decimal_places=2)
 
     class Meta:
         verbose_name = _("Purchase")
@@ -203,6 +203,7 @@ class ProductType(AuditModel):
     PRODUCT_TYPE_CHOICES = [
         ("dish", _("Prepared Dish")),
         ("resale", _("Direct Buy/Resale Product")),
+        ("not_sold", _("Other (Not Sold)")),
     ]
 
     cost_type = models.CharField(
@@ -325,13 +326,13 @@ class Sales(AuditModel):
     order_number = models.CharField(_("Order Number"), max_length=255)
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="sales")
     quantity_sold = models.DecimalField(
-        _("Quantity Sold"), max_digits=10, decimal_places=2
+        _("Quantity Sold"), max_digits=15, decimal_places=2
     )
     unit_sale_price = models.DecimalField(
-        _("Unit Price"), max_digits=10, decimal_places=2
+        _("Unit Price"), max_digits=15, decimal_places=2
     )
     total_sale_price = models.DecimalField(
-        _("Total Sale Price"), max_digits=10, decimal_places=2
+        _("Total Sale Price"), max_digits=15, decimal_places=2
     )
     customer = models.CharField(
         _("Customer Name"), max_length=255, blank=True, null=True
@@ -347,53 +348,6 @@ class Sales(AuditModel):
         return f"{self.product.name} - {self.sale_date}"
 
 
-class Recipe(AuditModel):
-    """Model representing a recipe."""
-
-    dish_name = models.CharField(_("Dish Name"), max_length=255)
-    dish_name_fr = models.CharField(_("French Dish Name"), max_length=255, blank=True)
-    dish_name_en = models.CharField(_("English Dish Name"), max_length=255, blank=True)
-    description = models.TextField(_("Description"), blank=True)
-
-    class Meta:
-        verbose_name = _("Recipe")
-        verbose_name_plural = _("Recipes")
-        ordering = ["dish_name"]
-
-    def __str__(self):
-        return self.dish_name
-
-
-class RecipeIngredient(AuditModel):
-    """Model representing an ingredient in a recipe."""
-
-    recipe = models.ForeignKey(
-        Recipe, on_delete=models.CASCADE, related_name="ingredients"
-    )
-    ingredient = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="recipes"
-    )
-    quantity = models.DecimalField(
-        _("Quantity"), max_digits=10, decimal_places=2, default=0.00
-    )
-    main_ingredient = models.BooleanField(_("Main Ingredient"), default=False)
-    unit_of_recipe = models.ForeignKey(
-        UnitOfMeasure,
-        on_delete=models.CASCADE,
-        related_name="recipe_ingredients",
-        blank=True,
-        null=True,
-    )
-
-    class Meta:
-        verbose_name = _("Recipe Ingredient")
-        verbose_name_plural = _("Recipe Ingredients")
-        ordering = ["recipe", "ingredient"]
-
-    def __str__(self):
-        return f"{self.recipe.dish_name} - {self.ingredient.name}"
-
-
 class ConsolidatedPurchases(AuditModel):
     """Model for storing consolidated purchase data aggregated by product name"""
 
@@ -403,9 +357,9 @@ class ConsolidatedPurchases(AuditModel):
         Product, on_delete=models.CASCADE, related_name="consolidated_purchases"
     )
     quantity_purchased = models.DecimalField(
-        _("Quantity Purchased"), max_digits=10, decimal_places=2
+        _("Quantity Purchased"), max_digits=15, decimal_places=2
     )
-    total_cost = models.DecimalField(_("Total Cost"), max_digits=10, decimal_places=2)
+    total_cost = models.DecimalField(_("Total Cost"), max_digits=15, decimal_places=2)
 
     # Additional consolidation fields
     unit_of_purchase = models.ForeignKey(
@@ -547,6 +501,48 @@ class UnitConversion(AuditModel):
             )
 
 
+class MarketPriceReference(AuditModel):
+    """Market prices for missing ingredient costs"""
+    
+    product = models.ForeignKey(
+        Product, 
+        on_delete=models.CASCADE, 
+        related_name='market_prices',
+        verbose_name=_("Product")
+    )
+    price_per_unit = models.DecimalField(
+        _("Market Price"), 
+        max_digits=15, 
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))]
+    )
+    unit_of_measure = models.ForeignKey(
+        UnitOfMeasure, 
+        on_delete=models.CASCADE,
+        verbose_name=_("Unit of Measure")
+    )
+    effective_date = models.DateField(_("Effective Date"))
+    source = models.CharField(_("Source"), max_length=200, help_text=_("e.g., Supplier, Market, Industry Standard"))
+    is_active = models.BooleanField(_("Is Active"), default=True)
+    
+    class Meta:
+        verbose_name = _("Market Price Reference")
+        verbose_name_plural = _("Market Price References")
+        ordering = ['-effective_date', 'product']
+        indexes = [
+            models.Index(fields=['product', 'effective_date']),
+            models.Index(fields=['is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.product.name} - {self.price_per_unit} per {self.unit_of_measure.name} ({self.source})"
+
+    def clean(self):
+        """Validate market price reference"""
+        if self.price_per_unit <= 0:
+            raise ValidationError(_("Market price must be greater than zero"))
+
+
 class StandardKitchenUnit(AuditModel):
     """Model for defining standard kitchen units by product category or specific products"""
 
@@ -630,13 +626,13 @@ class ConsolidatedSales(AuditModel):
         Product, on_delete=models.CASCADE, related_name="consolidated_sales"
     )
     quantity_sold = models.DecimalField(
-        _("Quantity Sold"), max_digits=10, decimal_places=2
+        _("Quantity Sold"), max_digits=15, decimal_places=2
     )
     unit_sale_price = models.DecimalField(
-        _("Unit Price"), max_digits=10, decimal_places=2
+        _("Unit Price"), max_digits=15, decimal_places=2
     )
     total_sale_price = models.DecimalField(
-        _("Total Sale Price"), max_digits=10, decimal_places=2
+        _("Total Sale Price"), max_digits=15, decimal_places=2
     )
     customer = models.CharField(
         _("Customer Name"), max_length=255, blank=True, null=True

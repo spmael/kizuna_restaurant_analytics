@@ -100,9 +100,9 @@
                                             </div>
                                         </div>
                                         <small class="text-muted">
-                                            {{ upload.processed_rows }}/{{ upload.total_rows }} {% trans "rows" %}
-                                            {% if upload.error_rows %}
-                                                ({{ upload.error_rows }} {% trans "errors" %})
+                                            {{ upload.processed_records }}/{{ upload.total_records }} {% trans "records" %}
+                                            {% if upload.error_records %}
+                                                ({{ upload.error_records }} {% trans "errors" %})
                                             {% endif %}
                                         </small>
                                     {% elif upload.status == 'processing' %}

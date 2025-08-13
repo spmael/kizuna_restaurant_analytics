@@ -94,16 +94,16 @@
                 {% if upload.status != 'pending' %}
                 <table class="table table-sm">
                     <tr>
-                        <th width="40%">{% trans "Total Rows:" %}</th>
-                        <td>{{ upload.total_rows|default:"N/A" }}</td>
+                        <th width="40%">{% trans "Total Records:" %}</th>
+                        <td>{{ upload.total_records|default:"N/A" }}</td>
                     </tr>
                     <tr>
-                        <th>{% trans "Processed Rows:" %}</th>
-                        <td class="text-success">{{ upload.processed_rows|default:0 }}</td>
+                        <th>{% trans "Processed Records:" %}</th>
+                        <td class="text-success">{{ upload.processed_records|default:0 }}</td>
                     </tr>
                     <tr>
-                        <th>{% trans "Error Rows:" %}</th>
-                        <td class="text-danger">{{ upload.error_rows|default:0 }}</td>
+                        <th>{% trans "Error Records:" %}</th>
+                        <td class="text-danger">{{ upload.error_records|default:0 }}</td>
                     </tr>
                     <tr>
                         <th>{% trans "Success Rate:" %}</th>
@@ -116,16 +116,16 @@
                             </div>
                         </td>
                     </tr>
-                    {% if upload.started_at %}
+                    {% if upload.start_processing_at %}
                     <tr>
                         <th>{% trans "Started At:" %}</th>
-                        <td>{{ upload.started_at|date:"d/m/Y H:i:s" }}</td>
+                        <td>{{ upload.start_processing_at|date:"d/m/Y H:i:s" }}</td>
                     </tr>
                     {% endif %}
-                    {% if upload.completed_at %}
+                    {% if upload.completed_processing_at %}
                     <tr>
                         <th>{% trans "Completed At:" %}</th>
-                        <td>{{ upload.completed_at|date:"d/m/Y H:i:s" }}</td>
+                        <td>{{ upload.completed_processing_at|date:"d/m/Y H:i:s" }}</td>
                     </tr>
                     {% endif %}
                 </table>

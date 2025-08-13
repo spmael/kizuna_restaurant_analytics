@@ -1,0 +1,239 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Sales Analytics" %} - Kizuna Analytics{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-0">📈 {% trans "Sales Analytics" %}</h1>
+                <p class="text-muted">{% trans "Last 30 days sales performance" %}</p>
+            </div>
+            <div>
+                <a href="{% url 'analytics:dashboard' %}" class="btn btn-outline-secondary mr-2">
+                    {% trans "Dashboard" %}
+                </a>
+                <a href="{% url 'analytics:costs' %}" class="btn btn-outline-success">
+                    {% trans "Cost Analysis" %}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Monthly Summary Cards -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            {% trans "Total Sales" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ monthly_totals.total_sales|floatformat:0|default:"0" }} FCFA
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            {% trans "Total Orders" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ monthly_totals.total_orders|default:"0" }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-shopping-cart fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            {% trans "Avg Order Value" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ monthly_totals.avg_order_value|floatformat:0|default:"0" }} FCFA
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            {% trans "Total Customers" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ monthly_totals.total_customers|default:"0" }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Sales Trend Chart -->
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">{% trans "30-Day Sales Trend" %}</h6>
+            </div>
+            <div class="card-body">
+                {% if daily_summaries %}
+                <canvas id="salesTrendChart" width="400" height="100"></canvas>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">{% trans "No data available" %}</h5>
+                    <p class="text-muted">{% trans "Calculate daily statistics first" %}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Summary Table -->
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">{% trans "Recent Daily Summary" %}</h6>
+            </div>
+            <div class="card-body">
+                {% if daily_summaries %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Date" %}</th>
+                                    <th>{% trans "Sales" %}</th>
+                                    <th>{% trans "Orders" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for summary in daily_summaries|slice:":7" %}
+                                <tr>
+                                    <td>{{ summary.date|date:"d/m" }}</td>
+                                    <td>{{ summary.total_sales|floatformat:0 }} FCFA</td>
+                                    <td>{{ summary.total_orders }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-table fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">{% trans "No summary data available" %}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if daily_summaries %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Sales trend chart
+const ctx = document.getElementById('salesTrendChart').getContext('2d');
+const salesTrendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [
+            {% for summary in daily_summaries %}
+                '{{ summary.date|date:"d/m" }}'{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ],
+        datasets: [{
+            label: '{% trans "Sales (FCFA)" %}',
+            data: [
+                {% for summary in daily_summaries %}
+                    {{ summary.total_sales|default:0 }}{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+            tension: 0.1
+        }, {
+            label: '{% trans "Orders" %}',
+            data: [
+                {% for summary in daily_summaries %}
+                    {{ summary.total_orders|default:0 }}{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            tension: 0.1,
+            yAxisID: 'y1'
+        }]
+    },
+    options: {
+        responsive: true,
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        },
+        scales: {
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return value.toLocaleString() + ' FCFA';
+                    }
+                }
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                beginAtZero: true,
+                grid: {
+                    drawOnChartArea: false,
+                },
+            }
+        }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

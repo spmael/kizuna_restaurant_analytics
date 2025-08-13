@@ -100,9 +100,7 @@ class ProductConsolidationService:
             "Poulet (Unité) (Entier)": "Poulet (Entier)",
             "Poulet (Unité) (Quartier)": "Poulet (Entier)",
             # Ailes de poulet - Consolidations
-            "Ailes de Poulet Cru (Kg)": "Ailes de Poulet au paprika",
-            "Ailes de Poulet Cru (kg)": "Ailes de Poulet au paprika",
-            "Ailes de poulet Cru (Kg)": "Ailes de Poulet au paprika",
+            "Ailes de Poulet au paprika": "Ailes de Poulet Cru (Kg)",
             # Filet de bœuf - Consolidations
             "Filet de Bœuf": "FAUX FILET",
             # Pommes de terre - Consolidations
@@ -145,6 +143,55 @@ class ProductConsolidationService:
                 )
 
         logger.info(f"Migrated {len(grouped_rules)} legacy consolidation rules")
+
+    def find_consolidated_product(self, product_name: str) -> Product:
+        """
+        Find the consolidated product for a given product name
+
+        Args:
+            product_name: The original product name to look up
+
+        Returns:
+            The consolidated Product instance, or the original product if no consolidation found
+        """
+        try:
+            # Check legacy rules first (faster lookup)
+            legacy_rules = self.get_legacy_rules()
+            if product_name in legacy_rules:
+                consolidated_name = legacy_rules[product_name]
+                consolidated_product = Product.objects.filter(
+                    name__iexact=consolidated_name
+                ).first()
+                if consolidated_product:
+                    logger.info(
+                        f"Found consolidated product '{consolidated_product.name}' for '{product_name}' via legacy rules"
+                    )
+                    return consolidated_product
+
+            # Check database consolidation rules
+            consolidations = ProductConsolidation.objects.filter(is_verified=True)
+            for consolidation in consolidations:
+                # Check if this product is in the consolidated products list
+                if product_name.lower() in [
+                    p.name.lower()
+                    for p in Product.objects.filter(
+                        id__in=consolidation.consolidated_products
+                    )
+                ]:
+                    logger.info(
+                        f"Found consolidated product '{consolidation.primary_product.name}' for '{product_name}' via database rules"
+                    )
+                    return consolidation.primary_product
+
+            # If no consolidation found, return the original product
+            product = Product.objects.filter(name__iexact=product_name).first()
+            return product
+
+        except Exception as e:
+            logger.error(
+                f"Error finding consolidated product for '{product_name}': {str(e)}"
+            )
+            return None
 
 
 # Create a singleton instance for easy access

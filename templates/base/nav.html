@@ -1,7 +1,7 @@
 {% load i18n %}
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container">
-        <a class="navbar-brand" href="{% url 'core:dashboard' %}">
+        <a class="navbar-brand" href="{% url 'analytics:dashboard' %}">
             🍽️ Kizuna Restaurant Analytics
         </a>
         
@@ -13,7 +13,7 @@
             {% if user.is_authenticated %}
             <ul class="navbar-nav mr-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'core:dashboard' %}">
+                    <a class="nav-link" href="{% url 'analytics:dashboard' %}">
                         {% trans "Dashboard" %}
                     </a>
                 </li>
@@ -23,12 +23,12 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'recipes:list' %}">
+                    <a class="nav-link" href="{% url 'recipes:recipe_list' %}">
                         {% trans "Recipes" %}
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'analytics:cogs' %}">
+                    <a class="nav-link" href="{% url 'analytics:sales' %}">
                         {% trans "Analytics" %}
                     </a>
                 </li>

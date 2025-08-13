@@ -6,9 +6,8 @@ from django.utils import timezone
 from apps.data_management.models import DataUpload, ProcessingError
 
 from ..extractors.odoo_extractor import OdooExtractor
-from ..extractors.recipe_extractor import RecipeExtractor
-from ..loaders.database_loader import RecipeDataLoader, RestaurantDataLoader
-from ..transformers.odoo_data_cleaner import OdooDataTransformer, RecipeDataTransformer
+from ..loaders.database_loader import RestaurantDataLoader
+from ..transformers.odoo_data_cleaner import OdooDataTransformer
 from ..utils.data_quality_analyzer import DataQualityAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -85,14 +84,8 @@ class DataProcessingPipeline:
         """Extract data from the uploaded file"""
 
         try:
-            if self.upload.file_type == "odoo_export":
-                self.extractor = OdooExtractor(self.file_path)
-            elif self.upload.file_type == "recipes_data":
-                self.extractor = RecipeExtractor(self.file_path)
-            else:
-                # Try Odoo extractor as default
-                self.extractor = OdooExtractor(self.file_path)
-
+            # Use unified OdooExtractor for all file types
+            self.extractor = OdooExtractor(self.file_path)
             extracted_data = self.extractor.extract()
 
             if not extracted_data:
@@ -100,81 +93,134 @@ class DataProcessingPipeline:
                     self._log_processing_error(0, "extraction", error)
                 return None
 
-            # Calculate total records
-            total_records = sum(df.shape[0] for df in extracted_data.values())
-            self.upload.total_records = total_records
-            self.upload.save()
-
-            logger.info(
-                f"Extracted {total_records} records from {self.upload.file.name}"
+            # Log extraction statistics
+            total_rows = sum(
+                len(df) for df in extracted_data.values() if df is not None
             )
+            logger.info(
+                f"Extracted {len(extracted_data)} sheets with {total_rows} total rows"
+            )
+
             return extracted_data
 
         except Exception as e:
-            logger.error(f"Error extracting data: {str(e)}")
+            error_msg = f"Error extracting data: {str(e)}"
+            self._log_processing_error(0, "extraction", error_msg)
             return None
 
     def _transform_data(self, extracted_data: Dict) -> Optional[Dict]:
-        """Transform extracted data"""
+        """Transform and clean extracted data"""
 
         try:
-            # Step 1: Initial data cleaning
-            if self.upload.file_type == "odoo_export":
-                self.transformer = OdooDataTransformer(user=self.user)
-                transformed_data = self.transformer.transform(extracted_data)
-            elif self.upload.file_type == "recipes_data":
-                self.transformer = RecipeDataTransformer(user=self.user)
-                transformed_data = self.transformer.transform(extracted_data)
-
-            for error in self.transformer.errors:
-                self._log_processing_error(0, "transformation", error)
-
-            for warning in self.transformer.warnings:
-                logger.warning(f"Transformation warning: {warning}")
+            # Use unified OdooDataTransformer for all data types
+            self.transformer = OdooDataTransformer()
+            transformed_data = self.transformer.transform(extracted_data)
 
             if not transformed_data:
-                logger.error("No transformed data")
+                for error in self.transformer.errors:
+                    self._log_processing_error(0, "transformation", error)
                 return None
 
-            logger.info(f"Transformed {len(transformed_data)} sheets")
+            # Log transformation statistics
+            total_rows = sum(
+                len(df) for df in transformed_data.values() if df is not None
+            )
+            logger.info(
+                f"Transformed {len(transformed_data)} sheets with {total_rows} total rows"
+            )
+
             return transformed_data
 
         except Exception as e:
-            logger.error(f"Error transforming data: {str(e)}")
+            error_msg = f"Error transforming data: {str(e)}"
+            self._log_processing_error(0, "transformation", error_msg)
             return None
 
-    def _load_data(self, transformed_data: Dict) -> Optional[Dict]:
-        """Load transformed data into the database"""
+    def _analyze_data_quality(self, transformed_data: Dict) -> Dict:
+        """Analyze data quality for all sheets"""
 
         try:
-            if self.upload.file_type == "odoo_export":
-                self.loader = RestaurantDataLoader(
-                    self.user, upload_instance=self.upload
-                )
-                load_results = self.loader.load(transformed_data)
-            elif self.upload.file_type == "recipes_data":
-                self.loader = RecipeDataLoader(self.user, upload_instance=self.upload)
-                load_results = self.loader.load(transformed_data)
+            quality_metrics = {}
 
-            for error in self.loader.errors:
-                self._log_processing_error(0, "loading", error)
+            for sheet_type, df in transformed_data.items():
+                if df is not None and not df.empty:
+                    sheet_metrics = self.quality_analyzer.analyze_sheet(df, sheet_type)
+                    quality_metrics[sheet_type] = sheet_metrics
 
-            # Update upload statistics - count all records processed
-            total_processed = 0
-            for data_type, stats in load_results.items():
-                total_processed += stats.get("created", 0) + stats.get("updated", 0)
+            # Calculate overall quality score
+            overall_score = self.quality_analyzer.calculate_overall_quality(
+                quality_metrics
+            )
+            quality_metrics["overall"] = {
+                "quality_score": overall_score,
+                "total_sheets": len(quality_metrics),
+                "total_issues": sum(
+                    metrics.get("total_issues", 0)
+                    for metrics in quality_metrics.values()
+                ),
+                "critical_issues": sum(
+                    metrics.get("critical_issues", 0)
+                    for metrics in quality_metrics.values()
+                ),
+                "warnings": sum(
+                    metrics.get("warnings", 0) for metrics in quality_metrics.values()
+                ),
+            }
 
-            self.upload.processed_records = total_processed
-            self.upload.error_records = self.loader.error_count
+            logger.info(
+                f"Data quality analysis completed. Overall score: {overall_score}%"
+            )
+            return quality_metrics
+
+        except Exception as e:
+            logger.error(f"Error analyzing data quality: {str(e)}")
+            return {}
+
+    def _load_data(self, transformed_data: Dict) -> Optional[Dict]:
+        """Load transformed data into database"""
+
+        try:
+            # Use unified RestaurantDataLoader for all data types
+            self.loader = RestaurantDataLoader(user=self.user, upload=self.upload)
+            load_results = self.loader.load(transformed_data)
+
+            if not load_results:
+                for error in self.loader.errors:
+                    self._log_processing_error(0, "loading", error)
+                return None
+
+            # Log loading statistics
+            total_created = sum(
+                result.get("created", 0)
+                for result in load_results.values()
+                if isinstance(result, dict)
+            )
+            total_updated = sum(
+                result.get("updated", 0)
+                for result in load_results.values()
+                if isinstance(result, dict)
+            )
+            total_errors = sum(
+                result.get("errors", 0)
+                for result in load_results.values()
+                if isinstance(result, dict)
+            )
+
+            # Update upload statistics
+            self.upload.processed_records = total_created + total_updated
+            self.upload.error_records = total_errors
+            self.upload.total_records = self.upload.processed_records + total_errors
             self.upload.save()
 
             logger.info(
-                f"Loaded data - Created: {self.loader.created_count}, Updated: {self.loader.updated_count}, Errors: {self.loader.error_count}"
+                f"Data loading completed. Created: {total_created}, Updated: {total_updated}, Errors: {total_errors}"
             )
+
             return load_results
 
         except Exception as e:
-            logger.error(f"Error loading data: {str(e)}")
+            error_msg = f"Error loading data: {str(e)}"
+            self._log_processing_error(0, "loading", error_msg)
             return None
 
     def _handle_success(self, load_results: Dict, quality_metrics: Dict):
@@ -182,10 +228,11 @@ class DataProcessingPipeline:
 
         self.upload.status = "completed"
         self.upload.current_stage = "completed"
-        self.upload.end_processing_at = timezone.now()
+        self.upload.completed_processing_at = timezone.now()
 
-        # Store detailed sheet statistics
+        # Store detailed sheet statistics and quality metrics
         self.upload.sheet_statistics = load_results
+        self.upload.data_quality_metrics = quality_metrics
 
         # build processing log
         log_lines = [
@@ -225,21 +272,6 @@ class DataProcessingPipeline:
 
         logger.info(f"ETL pipeline completed successfully for upload {self.upload.id}")
 
-    def _analyze_data_quality(self, extracted_data: Dict) -> Dict:
-        """Analyze data quality for all extracted sheets"""
-        logger.info("Starting data quality analysis...")
-
-        quality_metrics = self.quality_analyzer.analyze_all_sheets(extracted_data)
-
-        # Store quality metrics in upload
-        self.upload.data_quality_metrics = quality_metrics
-        self.upload.save()
-
-        logger.info(
-            f"Data quality analysis completed for {len(quality_metrics)} sheets"
-        )
-        return quality_metrics
-
     def _generate_analytics(self):
         """Generate consolidated analytics data"""
         logger.info("Generating consolidated analytics...")
@@ -253,7 +285,7 @@ class DataProcessingPipeline:
 
         self.upload.status = "failed"
         self.upload.current_stage = "failed"
-        self.upload.end_processing_at = timezone.now()
+        self.upload.completed_processing_at = timezone.now()
 
         # build error log
         log_lines = [

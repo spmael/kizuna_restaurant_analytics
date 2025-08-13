@@ -1,0 +1,48 @@
+{% load i18n %}
+
+{% if recent_uploads %}
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>{% trans "File" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Date" %}</th>
+                    <th>{% trans "Records" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for upload in recent_uploads %}
+                <tr>
+                    <td>
+                        <a href="{% url 'data_management:upload_detail' upload.pk %}">
+                            {{ upload.filename|truncatechars:30 }}
+                        </a>
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ upload.get_status_color }}">
+                            {{ upload.get_status_display }}
+                        </span>
+                    </td>
+                    <td>{{ upload.created_at|date:"M d, Y" }}</td>
+                    <td>
+                        {% if upload.processed_records %}
+                            {{ upload.processed_records }}
+                            {% if upload.error_records %}
+                                <span class="text-danger">({{ upload.error_records }} errors)</span>
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="text-muted">
+        <p class="mb-0">{% trans "No uploads yet." %}</p>
+        <small>{% trans "Upload your first data file to get started." %}</small>
+    </div>
+{% endif %}

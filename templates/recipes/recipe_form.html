@@ -1,0 +1,161 @@
+{% extends "base/base.html" %}
+{% load static i18n %}
+
+{% block title %}
+    {% if form.instance.pk %}
+        {% trans "Edit Recipe" %} - Kizuna Restaurant Analytics
+    {% else %}
+        {% trans "Create Recipe" %} - Kizuna Restaurant Analytics
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">
+                    <i class="fas fa-utensils me-2"></i>
+                    {% if form.instance.pk %}
+                        {% trans "Edit Recipe" %}
+                    {% else %}
+                        {% trans "Create New Recipe" %}
+                    {% endif %}
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.dish_name.id_for_label }}" class="form-label">
+                                    {% trans "Dish Name" %} *
+                                </label>
+                                {{ form.dish_name }}
+                                {% if form.dish_name.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.dish_name.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.dish_name_fr.id_for_label }}" class="form-label">
+                                    {% trans "Dish Name (French)" %}
+                                </label>
+                                {{ form.dish_name_fr }}
+                                {% if form.dish_name_fr.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.dish_name_fr.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.dish_name_en.id_for_label }}" class="form-label">
+                                    {% trans "Dish Name (English)" %}
+                                </label>
+                                {{ form.dish_name_en }}
+                                {% if form.dish_name_en.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.dish_name_en.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.servings.id_for_label }}" class="form-label">
+                                    {% trans "Servings" %}
+                                </label>
+                                {{ form.servings }}
+                                {% if form.servings.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.servings.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.preparation_time.id_for_label }}" class="form-label">
+                                    {% trans "Preparation Time (minutes)" %}
+                                </label>
+                                {{ form.preparation_time }}
+                                {% if form.preparation_time.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.preparation_time.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.cooking_time.id_for_label }}" class="form-label">
+                                    {% trans "Cooking Time (minutes)" %}
+                                </label>
+                                {{ form.cooking_time }}
+                                {% if form.cooking_time.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.cooking_time.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">
+                            {% trans "Description" %}
+                        </label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.description.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'recipes:recipe_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            {% trans "Cancel" %}
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>
+                            {% if form.instance.pk %}
+                                {% trans "Update Recipe" %}
+                            {% else %}
+                                {% trans "Create Recipe" %}
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-control, .form-select {
+    border: 1px solid var(--border-color);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
+}
+</style>
+{% endblock %}

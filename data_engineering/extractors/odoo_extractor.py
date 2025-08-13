@@ -9,17 +9,18 @@ logger = logging.getLogger(__name__)
 
 
 class OdooExtractor(BaseExtractor):
-    """Extract data from Odoo Excel export with multiple sheets"""
+    """Extract data from Odoo Excel export with multiple sheets including recipes"""
 
     # Expected sheet names
     EXPECTED_SHEETS = {
         "products": ["products", "produits", "produit", "product"],
         "purchases": ["purchases", "achats", "achat", "purchase"],
         "sales": ["sales", "ventes", "vente", "sale", "commandes_detaillees"],
+        "recipes": ["recipes", "recettes", "recette", "recipe"],
     }
 
     def extract(self) -> Dict[str, pd.DataFrame]:
-        """Extract data from Odoo Excel export with multiple sheets"""
+        """Extract data from Odoo Excel export with multiple sheets including recipes"""
 
         if not self.validate_file():
             return {}

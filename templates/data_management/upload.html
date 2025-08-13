@@ -58,7 +58,8 @@
                 <ul class="list-unstyled">
                     <li><i class="fas fa-box text-warning"></i> {% trans "Products" %}</li>
                     <li><i class="fas fa-shopping-cart text-success"></i> {% trans "Purchases" %}</li>
-                    <li class="fas fa-cash-register text-info"></i> {% trans "Sales" %}</li>
+                    <li><i class="fas fa-cash-register text-info"></i> {% trans "Sales" %}</li>
+                    <li><i class="fas fa-utensils text-primary"></i> {% trans "Recipes" %}</li>
                 </ul>
             </div>
         </div>
@@ -68,7 +69,7 @@
             <div class="card-header">
                 <h6 class="mb-0">{% trans "Recent Uploads" %}</h6>
             </div>
-            <div class="card-body" hx-get="{% url 'data_management:dashboard' %}" hx-trigger="load">
+            <div class="card-body" hx-get="{% url 'data_management:recent_uploads_partial' %}" hx-trigger="load">
                 <!-- Content loaded via HTMX -->
             </div>
         </div>

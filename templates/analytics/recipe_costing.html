@@ -1,0 +1,229 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Recipe Costing Analysis" %} - Kizuna Analytics{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-0">🍳 {% trans "Recipe Costing Analysis" %}</h1>
+                <p class="text-muted">
+                    {% blocktrans %}Cost analysis for {{ target_date }}{% endblocktrans %}
+                </p>
+            </div>
+            <div>
+                <a href="{% url 'analytics:ingredient_trends' %}" class="btn btn-outline-info mr-2">
+                    {% trans "Ingredient Trends" %}
+                </a>
+                <a href="{% url 'analytics:cost_efficiency' %}" class="btn btn-outline-success">
+                    {% trans "Cost Efficiency" %}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recipe Cost Summary -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            {% trans "Total Recipes" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ recipe_analysis.total_recipes }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-utensils fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            {% trans "Total Recipe Cost" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ recipe_analysis.total_recipe_cost|floatformat:0 }} FCFA
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-coins fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            {% trans "Avg Cost per Recipe" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {% if recipe_analysis.total_recipes > 0 %}
+                                {{ recipe_analysis.total_recipe_cost|div:recipe_analysis.total_recipes|floatformat:0 }} FCFA
+                            {% else %}
+                                0 FCFA
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-calculator fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            {% trans "Analysis Date" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ target_date|date:"d/m/Y" }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-calendar fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recipe Costs Table -->
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">{% trans "Recipe Costs Breakdown" %}</h6>
+            </div>
+            <div class="card-body">
+                {% if recipe_analysis.recipe_costs %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Recipe" %}</th>
+                                    <th>{% trans "Cost per Portion" %}</th>
+                                    <th>{% trans "Food Cost %" %}</th>
+                                    <th>{% trans "Status" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for recipe_data in recipe_analysis.recipe_costs|slice:":10" %}
+                                    <tr>
+                                        <td>{{ recipe_data.recipe.dish_name }}</td>
+                                        <td>{{ recipe_data.cost_data.total_cost_per_portion|floatformat:0 }} FCFA</td>
+                                        <td>
+                                            {% if recipe_data.food_cost_percentage %}
+                                                {{ recipe_data.food_cost_percentage|floatformat:1 }}%
+                                            {% else %}
+                                                --
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if recipe_data.food_cost_percentage %}
+                                                {% if recipe_data.food_cost_percentage <= 30 %}
+                                                    <span class="badge badge-success">{% trans "Good" %}</span>
+                                                {% elif recipe_data.food_cost_percentage <= 35 %}
+                                                    <span class="badge badge-warning">{% trans "Acceptable" %}</span>
+                                                {% else %}
+                                                    <span class="badge badge-danger">{% trans "High" %}</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge badge-secondary">{% trans "Unknown" %}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-utensils fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">{% trans "No recipe data available" %}</h5>
+                        <p class="text-muted">{% trans "Create recipes and update costs first" %}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Cost Efficiency Summary -->
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">{% trans "Cost Efficiency" %}</h6>
+            </div>
+            <div class="card-body">
+                {% if efficiency_analysis.efficient_recipes %}
+                    <h6 class="text-success">{% trans "Most Efficient Recipes" %}</h6>
+                    {% for recipe_data in efficiency_analysis.efficient_recipes|slice:":5" %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <strong>{{ recipe_data.recipe.dish_name }}</strong>
+                                <span class="text-success">{{ recipe_data.profit_margin|floatformat:1 }}%</span>
+                            </div>
+                            <small class="text-muted">
+                                {% blocktrans %}{{ recipe_data.profit_per_portion|floatformat:0 }} FCFA profit per portion{% endblocktrans %}
+                            </small>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-chart-line fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">{% trans "No efficiency data available" %}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">{% trans "Quick Actions" %}</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <a href="#" class="btn btn-sm btn-outline-primary btn-block">
+                        {% trans "Update Recipe Costs" %}
+                    </a>
+                </div>
+                <div class="mb-2">
+                    <a href="#" class="btn btn-sm btn-outline-info btn-block">
+                        {% trans "Export Cost Report" %}
+                    </a>
+                </div>
+                <div class="mb-2">
+                    <a href="#" class="btn btn-sm btn-outline-warning btn-block">
+                        {% trans "Review High Cost Items" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,594 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Kizuna Restaurant Analytics" %} - {% trans "Your Restaurant Story" %}{% endblock %}
+
+{% block body_class %}dashboard-body{% endblock %}
+
+{% block content %}
+<!-- Story-Driven Dashboard Navigation -->
+<nav class="story-nav mb-4">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h4 class="text-heading mb-0">
+                    <i class="fas fa-book-open text-primary me-2"></i>
+                    {% trans "Your Restaurant Story" %}
+                </h4>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="story-chapters">
+                    <a href="#morning-insights" class="story-chapter active" data-chapter="morning">
+                        <i class="fas fa-sun"></i>
+                        <span>{% trans "Morning" %}</span>
+                    </a>
+                    <a href="#revenue-story" class="story-chapter" data-chapter="revenue">
+                        <i class="fas fa-chart-line"></i>
+                        <span>{% trans "Revenue" %}</span>
+                    </a>
+                    <a href="#cost-chronicles" class="story-chapter" data-chapter="costs">
+                        <i class="fas fa-calculator"></i>
+                        <span>{% trans "Costs" %}</span>
+                    </a>
+                    <a href="#recipe-mastery" class="story-chapter" data-chapter="recipes">
+                        <i class="fas fa-utensils"></i>
+                        <span>{% trans "Recipes" %}</span>
+                    </a>
+                    <a href="#performance-excellence" class="story-chapter" data-chapter="performance">
+                        <i class="fas fa-trophy"></i>
+                        <span>{% trans "Performance" %}</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="dashboard-container">
+    <!-- Chapter 1: Morning Insights -->
+    <section id="morning-insights" class="story-chapter-content active">
+        <div class="chapter-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="chapter-title">
+                        <i class="fas fa-sun text-warning me-3"></i>
+                        {% trans "Morning Insights" %}
+                    </h1>
+                    <p class="chapter-narrative">
+                        {% trans "As the sun rises over Kizuna, let's see how yesterday's performance sets the tone for today's success." %}
+                    </p>
+                    <p class="chapter-subtitle">
+                        {% blocktrans %}Performance snapshot for {{ date_range.start|date:"M d" }} to {{ date_range.end|date:"M d, Y" }}{% endblocktrans %}
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="filter-bar">
+                        <div class="filter-group">
+                            <label class="filter-label me-2">{% trans "Time Range:" %}</label>
+                            <select id="dateRangePicker" class="filter-select">
+                                <option value="7">{% trans "Last 7 Days" %}</option>
+                                <option value="30">{% trans "Last 30 Days" %}</option>
+                                <option value="90">{% trans "Last 90 Days" %}</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Performance Indicators -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card primary">
+                    <div class="metric-icon primary">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div class="metric-label">{% trans "Revenue Pulse" %}</div>
+                    <div class="metric-value">
+                        {% if week_totals.total_sales %}
+                            {{ week_totals.total_sales|floatformat:0|default:"0" }} FCFA
+                        {% else %}
+                            0 FCFA
+                        {% endif %}
+                    </div>
+                    <div class="metric-change {% if sales_change >= 0 %}positive{% else %}negative{% endif %}">
+                        <i class="fas fa-arrow-{% if sales_change >= 0 %}up{% else %}down{% endif %}"></i>
+                        <span>{% if sales_change >= 0 %}+{% endif %}{{ sales_change|floatformat:1 }}%</span>
+                        <small>{% trans "vs last week" %}</small>
+                    </div>
+                    <div class="metric-insight">
+                        <i class="fas fa-lightbulb text-warning"></i>
+                        <small>{% trans "Strong week with consistent growth" %}</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card success">
+                    <div class="metric-icon success">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="metric-label">{% trans "Customer Flow" %}</div>
+                    <div class="metric-value">
+                        {{ week_totals.total_orders|default:"0" }}
+                    </div>
+                    <div class="metric-change {% if orders_change >= 0 %}positive{% else %}negative{% endif %}">
+                        <i class="fas fa-arrow-{% if orders_change >= 0 %}up{% else %}down{% endif %}"></i>
+                        <span>{% if orders_change >= 0 %}+{% endif %}{{ orders_change|floatformat:1 }}%</span>
+                        <small>{% trans "vs last week" %}</small>
+                    </div>
+                    <div class="metric-insight">
+                        <i class="fas fa-lightbulb text-success"></i>
+                        <small>{% trans "Growing customer base" %}</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card warning">
+                    <div class="metric-icon warning">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                    <div class="metric-label">{% trans "Cost Health" %}</div>
+                    <div class="metric-value">
+                        {{ week_totals.avg_food_cost_pct|floatformat:1|default:"0" }}%
+                    </div>
+                    <div class="metric-change neutral">
+                        <i class="fas fa-minus"></i>
+                        <span>0.0%</span>
+                        <small>{% trans "vs last week" %}</small>
+                    </div>
+                    <div class="metric-insight">
+                        {% if week_totals.avg_food_cost_pct > 35 %}
+                            <i class="fas fa-exclamation-triangle text-error"></i>
+                            <small>{% trans "Above target - review pricing" %}</small>
+                        {% else %}
+                            <i class="fas fa-check-circle text-success"></i>
+                            <small>{% trans "Within optimal range" %}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card info">
+                    <div class="metric-icon info">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="metric-label">{% trans "Customer Value" %}</div>
+                    <div class="metric-value">
+                        {% if yesterday and yesterday.average_order_value %}
+                            {{ yesterday.average_order_value|floatformat:0 }} FCFA
+                        {% else %}
+                            0 FCFA
+                        {% endif %}
+                    </div>
+                    <div class="metric-change positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+5.2%</span>
+                        <small>{% trans "vs last week" %}</small>
+                    </div>
+                    <div class="metric-insight">
+                        <i class="fas fa-lightbulb text-info"></i>
+                        <small>{% trans "Customers spending more per visit" %}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Revenue Story Preview -->
+        <div class="row mb-4">
+            <div class="col-lg-8 mb-4">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">
+                            <i class="fas fa-chart-line text-primary me-2"></i>
+                            {% trans "Revenue Journey" %}
+                        </h3>
+                        <p class="chart-narrative">{% trans "Follow the money - see how our daily performance builds our success story" %}</p>
+                        <div class="chart-actions">
+                            <button class="btn-african btn-african-outline chart-toggle" data-chart-id="revenue-chart" data-chart-type="Revenue">
+                                <i class="fas fa-chart-line"></i>
+                                {% trans "Line" %}
+                            </button>
+                            <button class="btn-african btn-african-outline chart-toggle" data-chart-id="revenue-chart" data-chart-type="Bar">
+                                <i class="fas fa-chart-bar"></i>
+                                {% trans "Bar" %}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="chart-canvas">
+                        <canvas id="revenueChart" data-chart-type="Revenue" data-chart-id="revenue-chart"></canvas>
+                        <div class="loading-overlay" style="display: none;">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 mb-4">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">
+                            <i class="fas fa-chart-pie text-secondary me-2"></i>
+                            {% trans "Menu Performance" %}
+                        </h3>
+                        <p class="chart-narrative">{% trans "Which dishes are telling the best stories?" %}</p>
+                    </div>
+                    <div class="chart-canvas">
+                        <canvas id="categoryChart" data-chart-type="Category" data-chart-id="category-chart"></canvas>
+                        <div class="loading-overlay" style="display: none;">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions & Insights -->
+        <div class="row">
+            <div class="col-lg-6 mb-4">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">
+                            <i class="fas fa-star text-warning me-2"></i>
+                            {% trans "Yesterday's Champions" %}
+                        </h3>
+                        <p class="chart-narrative">{% trans "Our top-performing dishes that made customers happy" %}</p>
+                    </div>
+                    <div class="data-table-container">
+                        {% if top_products %}
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>{% trans "Dish" %}</th>
+                                        <th>{% trans "Revenue" %}</th>
+                                        <th>{% trans "Orders" %}</th>
+                                        <th>{% trans "Story" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for product in top_products %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ product.product__name }}</strong>
+                                        </td>
+                                        <td>{{ product.total_revenue|floatformat:0 }} FCFA</td>
+                                        <td>{{ product.total_quantity }}</td>
+                                        <td>
+                                            <span class="status-badge success">{% trans "Customer Favorite" %}</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-utensils fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">{% trans "No product data available" %}</h5>
+                                <p class="text-muted">{% trans "Product sales data will appear here" %}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6 mb-4">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">
+                            <i class="fas fa-compass text-info me-2"></i>
+                            {% trans "Today's Action Plan" %}
+                        </h3>
+                        <p class="chart-narrative">{% trans "Based on yesterday's insights, here's what we should focus on today" %}</p>
+                    </div>
+                    <div class="p-african-lg">
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <a href="{% url 'analytics:sales' %}" class="btn-african btn-african-primary w-100">
+                                    <i class="fas fa-chart-bar"></i>
+                                    {% trans "Revenue Details" %}
+                                </a>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <a href="{% url 'analytics:costs' %}" class="btn-african btn-african-secondary w-100">
+                                    <i class="fas fa-calculator"></i>
+                                    {% trans "Cost Analysis" %}
+                                </a>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <a href="{% url 'analytics:recipe_costing' %}" class="btn-african btn-african-outline w-100">
+                                    <i class="fas fa-utensils"></i>
+                                    {% trans "Recipe Mastery" %}
+                                </a>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <a href="{% url 'analytics:performance' %}" class="btn-african btn-african-outline w-100">
+                                    <i class="fas fa-trophy"></i>
+                                    {% trans "Performance" %}
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- Performance Insights -->
+                        {% if yesterday and yesterday.food_cost_percentage > 35 %}
+                        <div class="alert-african warning mt-3">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <div>
+                                <strong>{% trans "Cost Alert!" %}</strong><br>
+                                {% trans "Food cost is" %} {{ yesterday.food_cost_percentage|floatformat:1 }}% - {% trans "review pricing strategy" %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if yesterday and yesterday.food_cost_percentage <= 30 %}
+                        <div class="alert-african success mt-3">
+                            <i class="fas fa-check-circle"></i>
+                            <div>
+                                <strong>{% trans "Excellent Performance!" %}</strong><br>
+                                {% trans "Food cost is" %} {{ yesterday.food_cost_percentage|floatformat:1 }}% - {% trans "keep up the great work" %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Chapter 2: Revenue Story -->
+    <section id="revenue-story" class="story-chapter-content">
+        <div class="chapter-header">
+            <h1 class="chapter-title">
+                <i class="fas fa-chart-line text-primary me-3"></i>
+                {% trans "The Revenue Story" %}
+            </h1>
+            <p class="chapter-narrative">
+                {% trans "Follow the money - from peak hours to customer preferences, understand what drives our success." %}
+            </p>
+        </div>
+        
+        <div class="row">
+            <div class="col-12 text-center">
+                <div class="coming-soon-card">
+                    <i class="fas fa-chart-line fa-4x text-primary mb-3"></i>
+                    <h3>{% trans "Revenue Story Coming Soon" %}</h3>
+                    <p>{% trans "Detailed revenue analysis with customer behavior insights" %}</p>
+                    <a href="{% url 'analytics:sales' %}" class="btn-african btn-african-primary">
+                        {% trans "View Sales Analytics" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Chapter 3: Cost Chronicles -->
+    <section id="cost-chronicles" class="story-chapter-content">
+        <div class="chapter-header">
+            <h1 class="chapter-title">
+                <i class="fas fa-calculator text-secondary me-3"></i>
+                {% trans "Cost Control Chronicles" %}
+            </h1>
+            <p class="chapter-narrative">
+                {% trans "Every ingredient tells a story - from farm to plate, track how costs impact our profitability." %}
+            </p>
+        </div>
+        
+        <div class="row">
+            <div class="col-12 text-center">
+                <div class="coming-soon-card">
+                    <i class="fas fa-calculator fa-4x text-secondary mb-3"></i>
+                    <h3>{% trans "Cost Chronicles Coming Soon" %}</h3>
+                    <p>{% trans "Comprehensive cost analysis and optimization insights" %}</p>
+                    <a href="{% url 'analytics:costs' %}" class="btn-african btn-african-secondary">
+                        {% trans "View Cost Analytics" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Chapter 4: Recipe Mastery -->
+    <section id="recipe-mastery" class="story-chapter-content">
+        <div class="chapter-header">
+            <h1 class="chapter-title">
+                <i class="fas fa-utensils text-warning me-3"></i>
+                {% trans "Recipe Mastery" %}
+            </h1>
+            <p class="chapter-narrative">
+                {% trans "Perfect recipes require perfect costing - see how each ingredient contributes to our signature dishes." %}
+            </p>
+        </div>
+        
+        <div class="row">
+            <div class="col-12 text-center">
+                <div class="coming-soon-card">
+                    <i class="fas fa-utensils fa-4x text-warning mb-3"></i>
+                    <h3>{% trans "Recipe Mastery Coming Soon" %}</h3>
+                    <p>{% trans "Detailed recipe costing and ingredient analysis" %}</p>
+                    <a href="{% url 'analytics:recipe_costing' %}" class="btn-african btn-african-warning">
+                        {% trans "View Recipe Costing" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Chapter 5: Performance Excellence -->
+    <section id="performance-excellence" class="story-chapter-content">
+        <div class="chapter-header">
+            <h1 class="chapter-title">
+                <i class="fas fa-trophy text-success me-3"></i>
+                {% trans "Performance Excellence" %}
+            </h1>
+            <p class="chapter-narrative">
+                {% trans "From daily operations to monthly goals, track our journey toward excellence." %}
+            </p>
+        </div>
+        
+        <div class="row">
+            <div class="col-12 text-center">
+                <div class="coming-soon-card">
+                    <i class="fas fa-trophy fa-4x text-success mb-3"></i>
+                    <h3>{% trans "Performance Excellence Coming Soon" %}</h3>
+                    <p>{% trans "Comprehensive performance analysis and benchmarking" %}</p>
+                    <a href="{% url 'analytics:performance' %}" class="btn-african btn-african-success">
+                        {% trans "View Performance Analysis" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Initialize charts when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Story navigation
+    const storyChapters = document.querySelectorAll('.story-chapter');
+    const chapterContents = document.querySelectorAll('.story-chapter-content');
+    
+    storyChapters.forEach(chapter => {
+        chapter.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Remove active class from all chapters
+            storyChapters.forEach(c => c.classList.remove('active'));
+            chapterContents.forEach(c => c.classList.remove('active'));
+            
+            // Add active class to clicked chapter
+            this.classList.add('active');
+            
+            // Show corresponding content
+            const targetId = this.getAttribute('href').substring(1);
+            const targetContent = document.getElementById(targetId);
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
+        });
+    });
+
+    // Revenue Chart
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    const revenueChart = new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: [
+                {% for summary in recent_summaries %}
+                    '{{ summary.date|date:"d/m" }}'{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                label: '{% trans "Revenue (FCFA)" %}',
+                data: [
+                    {% for summary in recent_summaries %}
+                        {{ summary.total_sales|default:0 }}{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                borderColor: '#E07A5F',
+                backgroundColor: 'rgba(224, 122, 95, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        fontFamily: 'Inter, sans-serif',
+                        color: '#6C757D',
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#FFFFFF',
+                    titleColor: '#343A40',
+                    bodyColor: '#6C757D',
+                    borderColor: '#E07A5F',
+                    borderWidth: 1,
+                    cornerRadius: 8
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(224, 122, 95, 0.1)'
+                    },
+                    ticks: {
+                        color: '#6C757D',
+                        fontFamily: 'Inter, sans-serif'
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(224, 122, 95, 0.1)'
+                    },
+                    ticks: {
+                        color: '#6C757D',
+                        fontFamily: 'Inter, sans-serif',
+                        callback: function(value) {
+                            return value.toLocaleString() + ' FCFA';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Category Chart
+    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    const categoryChart = new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['{% trans "Main Dishes" %}', '{% trans "Appetizers" %}', '{% trans "Drinks" %}', '{% trans "Desserts" %}'],
+            datasets: [{
+                label: '{% trans "Sales by Category" %}',
+                data: [45, 25, 20, 10],
+                backgroundColor: ['#E07A5F', '#F2B670', '#6B8E3D', '#81654F'],
+                borderColor: '#FFFFFF',
+                borderWidth: 2,
+                cutout: '60%'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        fontFamily: 'Inter, sans-serif',
+                        color: '#6C757D',
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#FFFFFF',
+                    titleColor: '#343A40',
+                    bodyColor: '#6C757D',
+                    borderColor: '#E07A5F',
+                    borderWidth: 1,
+                    cornerRadius: 8
+                }
+            }
+        }
+    });
+
+    // Store charts for later access
+    window.dashboardCharts = {
+        revenue: revenueChart,
+        category: categoryChart
+    };
+});
+</script>
+{% endblock %}

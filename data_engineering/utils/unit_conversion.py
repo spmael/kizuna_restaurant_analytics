@@ -271,39 +271,31 @@ class UnitConversionService:
 
         # Kitchen standard units based on French food categories
         kitchen_standards = {
-            # Meat & Poultry - Use grams for precise portioning
-            "Produits Alimentaires / Aliments / Aliments Frais / Viande": "g",
-            "Produits Alimentaires / Aliments / Aliments Frais / Volaille": "g",
-            "Produits Alimentaires / Aliments / Aliments Frais / Porc": "g",
-            "Produits Alimentaires / Aliments / Aliments Frais / Bœuf": "g",
-            "Produits Alimentaires / Aliments / Aliments Frais / Agneau": "g",
-            # Vegetables - Use grams for most, pieces for count items
-            "Produits Alimentaires / Aliments / Aliments Frais / Légumes": "g",
-            "Produits Alimentaires / Aliments / Aliments Frais / Tubercules": "g",
-            "Produits Alimentaires / Aliments / Aliments Frais / Légumes aromatiques": "g",
-            # Herbs & Aromatics - Use grams for consistency
-            "Produits Alimentaires / Aliments / Herbes Aromatiques": "g",
-            # Spices - Use grams for precision
+            # Spices and seasonings
             "Produits Alimentaires / Aliments / Aliments Secs / Epices": "g",
-            "Produits Alimentaires / Aliments / Assaisonnement": "g",
-            # Oils & Liquids - Use milliliters
-            "Produits Alimentaires / Aliments / Aliments Transformés / Huiles": "ml",
-            # Dairy - Mixed based on product type
-            "Produits Alimentaires / Aliments / Produits laitiers": "mixed",
-            # Grains & Cereals - Use grams
+            # Meat & Poultry
+            "Produits Alimentaires / Aliments / Aliments Frais / Volaille": "g",
+            # Vegetables & Aromatics
+            "Produits Alimentaires / Aliments / Aliments Frais / Légumes aromatiques": "g",
+            "Produits Alimentaires / Aliments / Aliments Frais / Tubercules": "g",
+            "Produits Alimentaires / Aliments / Aliments Frais / Légumes": "g",
+            "Produits Alimentaires / Aliments / Aliments Frais / Herbes Aromatiques": "g",
+            # Dairy & Processed Foods
+            "Produits Alimentaires / Aliments / Aliments Transformés / Produits laitiers": "mixed",
+            "Produits Alimentaires / Aliments / Aliments Transformés / Condiments": "g",
             "Produits Alimentaires / Aliments / Aliments Transformés / Céréales": "g",
-            "Produits Alimentaires / Aliments / Aliments Secs / Céréales": "g",
-            # Seafood - Use pieces (changed from pc for better portioning)
-            "Produits Alimentaires / Aliments / Aliments Frais / Poissons & Fruits de mer": "pc",
-            # Sauces and condiments - Use grams/ml based on consistency
-            "Produits Alimentaires / Aliments / Aliments Transformés / Sauces": "g",
-            "Produits Alimentaires / Aliments / Condiments": "g",
-            # Preserved foods
-            "Produits Alimentaires / Aliments / Aliments Transformés / Conserves": "g",
-            # Breads and pastries
+            # Meat
+            "Produits Alimentaires / Aliments / Aliments Frais / Bœuf": "g",
+            # Cheese & Bread
+            "Produits Alimentaires / Aliments / Aliments Transformés / Fromages": "g",
             "Produits Alimentaires / Aliments / Aliments Transformés / Pain et Boulangerie": "pc",
-            # Sugar - Use grams
-            "Produits Alimentaires / Aliments / Aliments Transformés / Sucres & Produits Sucrants": "g",
+            # Oils & Sauces
+            "Produits Alimentaires / Aliments / Aliments Transformés / Huiles": "ml",
+            "Produits Alimentaires / Aliments / Aliments Transformés / Sauces": "g",
+            # Seafood
+            "Produits Alimentaires / Aliments / Aliments Frais / Poissons & Fruits de mer": "pc",
+            # Sugar & Sweet Products
+            "Produits Alimentaires / Aliments / Aliments Transformés / Sucre & Produits sucrants": "g",
         }
 
         # Product-specific unit assignments (for special cases)
@@ -317,6 +309,9 @@ class UnitConversionService:
             "patates": "g",  # Sweet potatoes in grams
             "fromage gruyère": "pc",  # Gruyère cheese in pieces
             "tatie sucre sachet": "pc",  # Sugar sachet in pieces
+            "yaourt dolait": "l",  # Yogurt in liters
+            "lait nido": "pc",  # Nido milk in pieces
+            "crème fraîche cuisine": "g",  # Cream in grams
         }
 
         # Step 1: Create basic unit conversions
@@ -379,39 +374,38 @@ class UnitConversionService:
         # Step 2: Create product-specific conversions
         product_conversions = {
             # Vegetables and herbs - unit to grams
-            "pommes de terre": 150,  # 1 potato = 150g
             "oignons": 120,  # 1 onion = 120g
-            "tomates": 100,  # 1 tomato = 100g
-            "carottes": 80,  # 1 carrot = 80g
+            "oignons frais": 150,  # 1 bunch = 150g (updated based on market analysis)
+            "oignons frais (botte)": 50,  # 1 bunch = 150g (updated based on market analysis)
+            "tomates": 1000,  # 1 tomato = 1000g (updated based on market analysis)
+            "carottes": 150,  # 1 carrot = 80g
             "poivrons": 150,  # 1 pepper = 150g
             "aubergines": 250,  # 1 eggplant = 250g
-            "courgettes": 200,  # 1 zucchini = 200g
+            "courgettes": 1000,  # 1 zucchini = 1000g
             "concombres": 300,  # 1 cucumber = 300g
-            "avocats": 150,  # 1 avocado = 150g
-            "mangues": 200,  # 1 mango = 200g
-            "ananas": 1000,  # 1 pineapple = 1kg
-            "papayes": 500,  # 1 papaya = 500g
-            "bananes": 120,  # 1 banana = 120g
+            "plantains": 1000,  # 1 plantain = 1000g (updated based on market analysis)
+            "pommes de terre": 1000,  # 1 potato = 1000g (added to fix conversion issue)
             # Aromatics
             "ails": 50,  # 1 garlic bulb = 50g
             "gingembre": 100,  # 1 piece ginger = 100g
-            "citron vert": 30,  # 1 lime = 30g
-            "citrons": 60,  # 1 lemon = 60g
-            "oranges": 150,  # 1 orange = 150g
             # Herbs
             "basilic": 25,  # 1 bunch = 25g
-            "persil": 30,  # 1 bunch = 30g
+            "persil": 150,  # 1 bunch = 150g (updated based on market analysis)
             "menthe": 25,  # 1 bunch = 25g
             "coriandre": 25,  # 1 bunch = 25g
+            "coriandres": 25,  # 1 bunch = 25g (alternative spelling)
             # Spices (packages)
-            "piment doux": 100,
-            "poivre blanc": 50,
-            "poivre noir": 50,
-            "paprika": 40,
-            "curcuma": 50,
-            "curry": 50,
-            "4 cotés": 50,  # Spice mix
-            "rondelle": 35,
+            "piment doux": 150,  # 1 package = 150g (updated based on market analysis)
+            "poivre blanc": 150,
+            "poivre noir": 150,
+            "paprika": 150,  # 1 package = 150g (updated based on market analysis)
+            "curcuma": 150,  # 1 package = 150g (updated based on market analysis)
+            "4 cotés": 150,  # 1 package = 150g (updated based on market analysis)
+            "rondelle": 150,  # 1 package = 150g (updated based on market analysis)
+            "pèbè": 150,  # 1 package = 150g (updated based on market analysis)
+            "clou de girofle": 150,  # 1 package = 150g (updated based on market analysis)
+            # Salt and seasonings
+            "sel fin": 300,  # 1 package = 300g (updated based on market analysis)
             # Meat products
             "ailes de poulet cru": 150,  # 1 chicken wing = 150g
             "ailes de poulet": 150,  # 1 chicken wing = 150g
@@ -419,6 +413,7 @@ class UnitConversionService:
             "rumsteak": 200,  # 1 steak = 200g
             "blanc de poulet": 200,  # 1 breast = 200g
             "cuisse de poulet": 250,  # 1 thigh = 250g
+            "saucisses de bœuf": 1000,  # 1 sausage = 1000g (updated based on market analysis)
             # Sauces and condiments
             "sauce mayo": 500,  # 1 container = 500g
             "mayonnaise": 500,  # 1 container = 500g
@@ -427,6 +422,23 @@ class UnitConversionService:
             # Rice and grains
             "riz": 1000,  # 1 bag = 1kg
             "farine": 1000,  # 1 bag = 1kg
+            "fine chapelure": 500,  # 1 bag = 500g (added based on market analysis)
+            "fine chapelure pai": 500,  # 1 bag = 500g (added based on market analysis)
+            # Cheese and dairy
+            "mozzarella": 250,  # 1 package = 250g (added based on market analysis)
+            # Seasoning cubes and powders
+            "arômes maggi": 300,  # 1 cube = 300g (added based on market analysis)
+            "arômes maggi 300g": 300,  # 1 cube = 300g (added based on market analysis)
+            # Seeds
+            "graine sesame": 2064,  # 1 unit = 2064g (updated based on market price analysis)
+            "graine sésame": 2064,  # 1 unit = 2064g (updated based on market price analysis)
+            # Vegetables (if purchased by unit)
+            "céleris": 300,  # 1 bunch = 300g (added based on market analysis)
+            "céleri": 300,  # 1 bunch = 300g (added based on market analysis)
+            # Dairy products (1000g conversion factor)
+            "yaourt dolait": 1000,  # 1 unit/kg = 1000g (dairy product fix)
+            "crème fraîche cuisine": 1000,  # 1 unit/kg = 1000g (dairy product fix)
+            "courgettes": 1000,  # 1 unit = 1000g (dairy product fix)
         }
 
         # Liquid product conversions (unit to ml)
@@ -451,9 +463,26 @@ class UnitConversionService:
         # Create product-specific conversions for solid products (unit → g)
         for product_name, grams in product_conversions.items():
             try:
-                # Try to find the product
-                product = Product.objects.filter(name__icontains=product_name).first()
+                # Try to find the product with exact name match (case-insensitive)
+                product = Product.objects.filter(name__iexact=product_name).first()
                 if product:
+                    # Check if this product gets consolidated to another product
+                    from data_engineering.utils.product_consolidation import (
+                        ProductConsolidationService,
+                    )
+
+                    consolidation_service = ProductConsolidationService()
+                    consolidated_product = (
+                        consolidation_service.find_consolidated_product(product_name)
+                    )
+
+                    # Skip if this product gets consolidated to a different product
+                    if consolidated_product and consolidated_product.id != product.id:
+                        logger.info(
+                            f"Skipping conversion for '{product_name}' - gets consolidated to '{consolidated_product.name}'"
+                        )
+                        continue
+
                     existing = UnitConversion.objects.filter(
                         from_unit=unit_measure, to_unit=g_measure, product=product
                     ).first()
@@ -472,6 +501,13 @@ class UnitConversionService:
                         logger.info(
                             f"Created product conversion: {product_name} unit → g × {grams}"
                         )
+                else:
+                    # Debug: Log when product is not found
+                    logger.warning(
+                        f"Product not found for conversion '{product_name}'. "
+                        f"Available products with similar names: "
+                        f"{list(Product.objects.filter(name__icontains=product_name).values_list('name', flat=True))}"
+                    )
 
             except Exception as e:
                 logger.error(
@@ -481,8 +517,25 @@ class UnitConversionService:
         # Create product-specific conversions for liquid products (unit → ml)
         for product_name, ml in liquid_conversions.items():
             try:
-                product = Product.objects.filter(name__icontains=product_name).first()
+                product = Product.objects.filter(name__iexact=product_name).first()
                 if product:
+                    # Check if this product gets consolidated to another product
+                    from data_engineering.utils.product_consolidation import (
+                        ProductConsolidationService,
+                    )
+
+                    consolidation_service = ProductConsolidationService()
+                    consolidated_product = (
+                        consolidation_service.find_consolidated_product(product_name)
+                    )
+
+                    # Skip if this product gets consolidated to a different product
+                    if consolidated_product and consolidated_product.id != product.id:
+                        logger.info(
+                            f"Skipping conversion for '{product_name}' - gets consolidated to '{consolidated_product.name}'"
+                        )
+                        continue
+
                     existing = UnitConversion.objects.filter(
                         from_unit=unit_measure, to_unit=ml_measure, product=product
                     ).first()

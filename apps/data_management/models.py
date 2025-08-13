@@ -22,7 +22,6 @@ class DataUpload(TimeStampedModel):
 
     FILE_TYPE_CHOICES = [
         ("odoo_export", _("Odoo Export")),
-        ("recipes_data", _("Recipes Data")),
         ("other", _("Other")),
     ]
 

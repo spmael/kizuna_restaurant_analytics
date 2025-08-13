@@ -6,16 +6,25 @@ from .models import (
     ConsolidatedSales,
     Product,
     ProductConsolidation,
+    ProductType,
     Purchase,
     PurchasesCategory,
-    Recipe,
-    RecipeIngredient,
     Sales,
     SalesCategory,
     StandardKitchenUnit,
     UnitConversion,
     UnitOfMeasure,
 )
+
+
+class ProductTypeInline(admin.TabularInline):
+    """Inline admin for ProductType within Product admin"""
+
+    model = ProductType
+    extra = 1
+    fields = ("cost_type", "product_type", "cost_type_fr", "cost_type_en")
+    verbose_name = _("Product Cost Type")
+    verbose_name_plural = _("Product Cost Types")
 
 
 @admin.register(PurchasesCategory)
@@ -70,6 +79,7 @@ class ProductAdmin(admin.ModelAdmin):
         "current_selling_price",
         "current_cost_per_unit",
         "current_stock",
+        "product_types_count",
     )
     list_filter = (
         "sales_category",
@@ -77,7 +87,8 @@ class ProductAdmin(admin.ModelAdmin):
         "unit_of_measure",
     )
     search_fields = ("name", "name_fr", "name_en")
-    readonly_fields = ("stock_value",)
+    readonly_fields = ("stock_value", "product_types_count")
+    inlines = [ProductTypeInline]
 
     fieldsets = (
         (None, {"fields": ("name", "sales_category", "purchase_category")}),
@@ -96,9 +107,95 @@ class ProductAdmin(admin.ModelAdmin):
         ("Description", {"fields": ("description",)}),
     )
 
+    def product_types_count(self, obj):
+        """Display the number of product types associated with this product"""
+        return obj.product_cost_types.count()
+
+    product_types_count.short_description = _("Cost Types")
+
     def get_queryset(self, request):
         qs = super().get_queryset(request).select_related("sales_category")
         return qs
+
+
+@admin.register(ProductType)
+class ProductTypeAdmin(admin.ModelAdmin):
+    """Admin interface for Product Type management"""
+
+    list_display = (
+        "product",
+        "cost_type_display",
+        "product_type_display",
+        "cost_type_fr",
+        "cost_type_en",
+    )
+
+    list_filter = (
+        "cost_type",
+        "product_type",
+        "product__purchase_category",
+        "product__sales_category",
+    )
+
+    search_fields = (
+        "product__name",
+        "product__name_fr",
+        "product__name_en",
+        "cost_type_fr",
+        "cost_type_en",
+    )
+
+    autocomplete_fields = ["product"]
+
+    fieldsets = (
+        (
+            _("Product Association"),
+            {
+                "fields": ("product",),
+                "description": _("Select the product this cost type applies to"),
+            },
+        ),
+        (
+            _("Cost Classification"),
+            {
+                "fields": (
+                    "cost_type",
+                    "cost_type_fr",
+                    "cost_type_en",
+                ),
+                "description": _("Define the type of cost and its translations"),
+            },
+        ),
+        (
+            _("Product Classification"),
+            {
+                "fields": ("product_type",),
+                "description": _("Classify the product type for business logic"),
+            },
+        ),
+    )
+
+    def cost_type_display(self, obj):
+        """Display the cost type with better formatting"""
+        return dict(ProductType.COST_TYPE_CHOICES).get(obj.cost_type, obj.cost_type)
+
+    def product_type_display(self, obj):
+        """Display the product type with better formatting"""
+        return dict(ProductType.PRODUCT_TYPE_CHOICES).get(
+            obj.product_type, obj.product_type
+        )
+
+    cost_type_display.short_description = _("Cost Type")
+    product_type_display.short_description = _("Product Type")
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .select_related(
+                "product", "product__purchase_category", "product__sales_category"
+            )
+        )
 
 
 @admin.register(Purchase)
@@ -111,6 +208,7 @@ class PurchaseAdmin(admin.ModelAdmin):
     )
     list_filter = ("purchase_date",)
     date_hierarchy = "purchase_date"
+    search_fields = ("product__name", "product__name_fr", "product__name_en")
 
     fieldsets = (
         (
@@ -149,25 +247,6 @@ class SalesAdmin(admin.ModelAdmin):
         (
             _("Additional Information"),
             {"fields": ("customer", "cashier")},
-        ),
-    )
-
-
-class RecipeIngredientInline(admin.TabularInline):
-    model = RecipeIngredient
-    extra = 1
-    fields = ("ingredient", "quantity", "main_ingredient", "unit_of_recipe")
-
-
-@admin.register(Recipe)
-class RecipeAdmin(admin.ModelAdmin):
-    list_display = ("dish_name", "dish_name_fr", "dish_name_en")
-    inlines = [RecipeIngredientInline]
-
-    fieldsets = (
-        (
-            None,
-            {"fields": ("dish_name", "dish_name_fr", "dish_name_en", "description")},
         ),
     )
 

@@ -35,10 +35,6 @@ urlpatterns = [
     path("sales/<uuid:pk>/", views.SalesDetailView.as_view(), name="sales_detail"),
     # Stock management
     path("stock/", views.StockOverviewView.as_view(), name="stock_overview"),
-    # Recipe management
-    path("recipes/", views.RecipeListView.as_view(), name="recipe_list"),
-    path("recipes/add/", views.RecipeCreateView.as_view(), name="recipe_add"),
-    path("recipes/<uuid:pk>/", views.RecipeDetailView.as_view(), name="recipe_detail"),
     # Category management
     path(
         "categories/purchases/",

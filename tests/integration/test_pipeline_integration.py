@@ -1,6 +1,6 @@
 import os
 import tempfile
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pandas as pd
 from django.contrib.auth import get_user_model
@@ -353,8 +353,11 @@ class TestPipelineIntegration(TestCase):
                 "data_engineering.pipelines.initial_load_pipeline.OdooDataTransformer"
             ) as mock_transformer_class:
                 mock_transformer_instance = mock_transformer_class.return_value
+                # Create proper mock DataFrames
+                mock_df = Mock()
+                mock_df.shape = (5, 3)
                 mock_transformer_instance.transform.return_value = {
-                    "transformed_data": "test"
+                    "transformed_data": mock_df
                 }
                 mock_transformer_instance.errors = []
                 mock_transformer_instance.warnings = []
@@ -434,8 +437,11 @@ class TestPipelineIntegration(TestCase):
                 "data_engineering.pipelines.initial_load_pipeline.OdooDataTransformer"
             ) as mock_transformer_class:
                 mock_transformer_instance = mock_transformer_class.return_value
+                # Create proper mock DataFrames
+                mock_df = Mock()
+                mock_df.shape = (5, 3)
                 mock_transformer_instance.transform.return_value = {
-                    "transformed_data": "test"
+                    "transformed_data": mock_df
                 }
                 mock_transformer_instance.errors = []
                 mock_transformer_instance.warnings = []

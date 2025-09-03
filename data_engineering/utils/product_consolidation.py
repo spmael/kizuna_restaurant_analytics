@@ -95,22 +95,18 @@ class ProductConsolidationService:
         """Get the legacy consolidation rules dictionary"""
         return {
             # Poulet - Consolidations
-            "Poulet Cru (Kg)": "Poulet (Entier)",
-            "Poulet Cru (kg)": "Poulet (Entier)",
-            "Poulet (Unité) (Entier)": "Poulet (Entier)",
-            "Poulet (Unité) (Quartier)": "Poulet (Entier)",
+            "Poulet (Entier)": "Poulet Cru",
+            "Poulet (Unité) (Entier)": "Poulet Cru",
+            "Poulet (Unité) (Quartier)": "Poulet Cru",
             # Ailes de poulet - Consolidations
-            "Ailes de Poulet au paprika": "Ailes de Poulet Cru (Kg)",
+            "Ailes de Poulet au paprika": "Ailes de Poulet Cru",
             # Filet de bœuf - Consolidations
-            "Filet de Bœuf": "FAUX FILET",
+            "Filet de Bœuf": "Faux filet",
             # Pommes de terre - Consolidations
             "Pomme de terre Allumettes": "Pommes de terre",
             "Pommes de terre Allumettes": "Pommes de terre",
             # Mayonnaise/Sauce - Consolidations
-            "Mayonnaise ARMANTI": "Sauce Mayo",
-            "Mayonnaise Calve 820ml": "Sauce Mayo",
-            # huile - consolidation
-            "Huile de tournesol": "Huile de Palme",
+            "Mayonnaise Calve": "Mayonnaise ARMANTI",
         }
 
     def load_legacy_consolidation_rules(self):

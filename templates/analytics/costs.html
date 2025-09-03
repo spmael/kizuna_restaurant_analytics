@@ -1,7 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static i18n %}
 
-{% block title %}{% trans "Cost Analytics" %} - Kizuna Analytics{% endblock %}
+{% block title %}{% trans "Cost Analytics" %} - Kizuna Restaurant Analytics{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -12,10 +12,10 @@
                 <p class="text-muted">{% trans "Last 30 days cost and profitability analysis" %}</p>
             </div>
             <div>
-                <a href="{% url 'analytics:dashboard' %}" class="btn btn-outline-secondary mr-2">
+                <a href="{% url 'analytics:dashboard' %}" class="btn btn-outline-secondary me-2">
                     {% trans "Dashboard" %}
                 </a>
-                <a href="{% url 'analytics:sales' %}" class="btn btn-outline-primary">
+                <a href="{% url 'analytics:dashboard' %}" class="btn btn-outline-primary">
                     {% trans "Sales Analytics" %}
                 </a>
             </div>
@@ -229,7 +229,7 @@
 
 {% block extra_js %}
 {% if daily_summaries %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/chart.js' %}"></script>
 <script>
 // Cost trend chart
 const ctx = document.getElementById('costTrendChart').getContext('2d');

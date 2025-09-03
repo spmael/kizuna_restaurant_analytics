@@ -5,7 +5,7 @@ from typing import Dict
 
 import pandas as pd
 
-from ..utils.conversion_fixer import ConversionFixer
+# from ..utils.conversion_fixer import ConversionFixer
 from .base_transformer import BaseTransformer
 
 
@@ -16,7 +16,7 @@ class OdooDataTransformer(BaseTransformer):
         super().__init__(**kwargs)
 
         # Initialize conversion fixer
-        self.conversion_fixer = ConversionFixer()
+        # self.conversion_fixer = ConversionFixer()
 
         # Column mappings for different language and format
         self.column_mappings = {
@@ -103,17 +103,7 @@ class OdooDataTransformer(BaseTransformer):
         df = self._map_columns(df, "products")
         self.log_info(f"After column mapping: {list(df.columns)}")
 
-        # Combine name (formerly nom) with variant_values to create a formatted product name
-        if "name" in df.columns and "variant_values" in df.columns:
-            df["name"] = df.apply(
-                lambda row: self._combine_nom_with_variant(
-                    row["name"], row["variant_values"]
-                ),
-                axis=1,
-            )
-            self.log_info("Applied name and variant combination")
-
-        # Required columns check
+        # Ensure all required columns are present with defaults
         required_columns = [
             "name",
             "purchase_category",
@@ -123,14 +113,44 @@ class OdooDataTransformer(BaseTransformer):
             "current_cost_per_unit",
             "current_stock",
         ]
-        missing_columns = [col for col in required_columns if col not in df.columns]
 
-        if missing_columns:
-            self.log_warning(
-                f"Missing required columns for products: {missing_columns}"
+        # Add missing columns with defaults
+        for col in required_columns:
+            if col not in df.columns:
+                if col == "purchase_category" or col == "sales_category":
+                    df[col] = "Unknown"
+                elif col == "unit_of_measure":
+                    df[col] = "unit"
+                elif col == "current_selling_price" or col == "current_cost_per_unit":
+                    df[col] = 0.0
+                elif col == "current_stock":
+                    df[col] = 0
+                elif col == "name":
+                    # Generate names for rows without names
+                    df[col] = df.apply(
+                        lambda row, idx=df.index: (
+                            f"Product {idx + 1}"
+                            if pd.isna(row.get("name", ""))
+                            or str(row.get("name", "")).strip() == ""
+                            else str(row.get("name", "")).strip()
+                        ),
+                        axis=1,
+                    )
+                self.log_info(f"Added missing column '{col}' with default values")
+
+        # Combine name (formerly nom) with variant_values to create a formatted product name
+        if "variant_values" in df.columns:
+            df["name"] = df.apply(
+                lambda row: self._combine_nom_with_variant(
+                    row["name"], row["variant_values"]
+                ),
+                axis=1,
             )
-            self.log_warning(f"Available columns: {list(df.columns)}")
-            return pd.DataFrame()
+            self.log_info("Applied name and variant combination")
+
+        self.log_info(
+            f"All required columns present. DataFrame shape before cleaning: {df.shape}"
+        )
 
         self.log_info(
             f"All required columns present. DataFrame shape before cleaning: {df.shape}"
@@ -299,45 +319,25 @@ class OdooDataTransformer(BaseTransformer):
                 # Clean total
                 total = self._clean_decimal(row["total_cost"])
                 if total is None:
-                    self.log_error(f"Invalid total: {row['total_cost']}", idx + 1)
+                    self.log_error(f"Invalid total cost: {row['total_cost']}", idx + 1)
                     continue
 
-                transformed_df.at[idx, "total_cost"] = float(total)
+                transformed_df.at[idx, "total_cost"] = int(total)
+
             except Exception as e:
                 self.log_error(
-                    f"Error processing purchase row {idx + 1}: {str(e)}", idx + 1
+                    f"Error processing purchases row {idx + 1}: {str(e)}", idx + 1
                 )
+                continue
 
-        # Final DataFrame with only required columns
-        transformed_df = transformed_df[required_columns]
-
-        # Apply conversion fixes for large quantity issues
-        if not transformed_df.empty:
-            self.log_info("Applying conversion fixes to purchases data...")
-            self.log_info(
-                f"Before conversion fix - Sample quantities: {transformed_df['quantity_purchased'].head().tolist()}"
-            )
-
-            transformed_df = self.conversion_fixer.fix_purchases_data(transformed_df)
-
-            # Log conversion fix summary
-            fix_summary = self.conversion_fixer.get_fixes_summary()
-            if fix_summary["total_fixes"] > 0:
-                self.log_info(f"Applied {fix_summary['total_fixes']} conversion fixes")
-                for pattern, count in fix_summary["patterns_found"].items():
-                    self.log_info(f"  {pattern}: {count} fixes")
-                self.log_info(
-                    f"After conversion fix - Sample quantities: {transformed_df['quantity_purchased'].head().tolist()}"
-                )
-            else:
-                self.log_info("No conversion fixes were applied")
-        else:
-            self.log_info("No purchases data to apply conversion fixes to")
+        # Apply conversion fixer if needed (disabled)
+        # transformed_df = self.conversion_fixer.fix_purchases_data(transformed_df)
+        # fix_summary = self.conversion_fixer.get_fixes_summary()
 
         return transformed_df
 
     def _convert_pivot_to_tabular(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Convert pivot table format to tabular format"""
+        """Convert pivot format purchases to tabular with columns purchase_date, product, quantity_purchased, total_cost"""
 
         # French month abbreviations mapping (shared with _clean_date)
         french_months = self._get_french_months_mapping()
@@ -456,19 +456,19 @@ class OdooDataTransformer(BaseTransformer):
                 f"Before conversion fix - Sample quantities: {result_df['quantity_purchased'].head().tolist()}"
             )
 
-            result_df = self.conversion_fixer.fix_purchases_data(result_df)
+            # result_df = self.conversion_fixer.fix_purchases_data(result_df)
 
             # Log conversion fix summary
-            fix_summary = self.conversion_fixer.get_fixes_summary()
-            if fix_summary["total_fixes"] > 0:
-                self.log_info(f"Applied {fix_summary['total_fixes']} conversion fixes")
-                for pattern, count in fix_summary["patterns_found"].items():
-                    self.log_info(f"  {pattern}: {count} fixes")
-                self.log_info(
-                    f"After conversion fix - Sample quantities: {result_df['quantity_purchased'].head().tolist()}"
-                )
-            else:
-                self.log_info("No conversion fixes were applied")
+            # fix_summary = self.conversion_fixer.get_fixes_summary()
+            # if fix_summary["total_fixes"] > 0:
+            #     self.log_info(f"Applied {fix_summary['total_fixes']} conversion fixes")
+            #     for pattern, count in fix_summary["patterns_found"].items():
+            #         self.log_info(f"  {pattern}: {count} fixes")
+            #     self.log_info(
+            #         f"After conversion fix - Sample quantities: {result_df['quantity_purchased'].head().tolist()}"
+            #     )
+            # else:
+            self.log_info("No conversion fixes were applied")
         else:
             self.log_info(
                 "No purchases data to apply conversion fixes to (pivot conversion path)"
@@ -751,7 +751,7 @@ class OdooDataTransformer(BaseTransformer):
             "g": ["g", "gram", "gramme", "gr"],
             "l": ["l", "litre", "liter", "lt"],
             "ml": ["ml", "millilitre", "milliliter"],
-            "pcs": ["pcs", "pieces", "pièces", "piece", "pièce", "unit", "unité"],
+            "pcs": ["pcs", "pieces", "pièces", "piece", "pièce"],
             "dozen": ["dozen", "douzaine", "dz"],
             "bottle": ["bottle", "bouteille", "btl"],
             "can": ["can", "boîte", "boite", "canette"],

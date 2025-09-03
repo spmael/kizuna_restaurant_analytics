@@ -55,10 +55,10 @@
                         {% trans "Morning Insights" %}
                     </h1>
                     <p class="chapter-narrative">
-                        {% trans "As the sun rises over Kizuna, let's see how yesterday's performance sets the tone for today's success." %}
+                        {% trans "As the sun rises over Kizuna, let's see how our performance for the period ending" %} {{ date_range.end|date:"M d, Y" }} {% trans "sets the tone for today's success." %}
                     </p>
                     <p class="chapter-subtitle">
-                        {% blocktrans %}Performance snapshot for {{ date_range.start|date:"M d" }} to {{ date_range.end|date:"M d, Y" }}{% endblocktrans %}
+                        Performance snapshot for {{ date_range.start|date:"M d" }} to {{ date_range.end|date:"M d, Y" }}
                     </p>
                 </div>
                 <div class="col-md-4 text-end">
@@ -66,10 +66,11 @@
                         <div class="filter-group">
                             <label class="filter-label me-2">{% trans "Time Range:" %}</label>
                             <select id="dateRangePicker" class="filter-select">
-                                <option value="7">{% trans "Last 7 Days" %}</option>
-                                <option value="30">{% trans "Last 30 Days" %}</option>
-                                <option value="90">{% trans "Last 90 Days" %}</option>
+                                <option value="7" {% if selected_days == 7 %}selected{% endif %}>{% trans "Last 7 Days" %}</option>
+                                <option value="30" {% if selected_days == 30 %}selected{% endif %}>{% trans "Last 30 Days" %}</option>
+                                <option value="90" {% if selected_days == 90 %}selected{% endif %}>{% trans "Last 90 Days" %}</option>
                             </select>
+                            <span id="dateRangeStatus" class="ms-2" style="font-size: 0.8rem; color: #6c757d;"></span>
                         </div>
                     </div>
                 </div>
@@ -85,20 +86,19 @@
                     </div>
                     <div class="metric-label">{% trans "Revenue Pulse" %}</div>
                     <div class="metric-value">
-                        {% if week_totals.total_sales %}
-                            {{ week_totals.total_sales|floatformat:0|default:"0" }} FCFA
+                        {% if morning_data.week_totals.total_sales %}
+                            {{ morning_data.week_totals.total_sales|floatformat:0|default:"0" }} FCFA
                         {% else %}
                             0 FCFA
                         {% endif %}
                     </div>
-                    <div class="metric-change {% if sales_change >= 0 %}positive{% else %}negative{% endif %}">
-                        <i class="fas fa-arrow-{% if sales_change >= 0 %}up{% else %}down{% endif %}"></i>
-                        <span>{% if sales_change >= 0 %}+{% endif %}{{ sales_change|floatformat:1 }}%</span>
-                        <small>{% trans "vs last week" %}</small>
+                    <div class="metric-change {% if morning_data.sales_change >= 0 %}positive{% else %}negative{% endif %}">
+                        <i class="fas fa-arrow-{% if morning_data.sales_change >= 0 %}up{% else %}down{% endif %}"></i>
+                        <span>{% if morning_data.sales_change >= 0 %}+{% endif %}{{ morning_data.sales_change|floatformat:1 }}%</span>
+                        <small>{% trans "vs last period" %}</small>
                     </div>
-                    <div class="metric-insight">
-                        <i class="fas fa-lightbulb text-warning"></i>
-                        <small>{% trans "Strong week with consistent growth" %}</small>
+                    <div class="metric-info-icon" onclick="showMetricInfo('revenue')">
+                        <i class="fas fa-info-circle"></i>
                     </div>
                 </div>
             </div>
@@ -106,20 +106,19 @@
             <div class="col-lg-3 col-md-6 mb-3">
                 <div class="metric-card success">
                     <div class="metric-icon success">
-                        <i class="fas fa-shopping-cart"></i>
+                        <i class="fas fa-users"></i>
                     </div>
                     <div class="metric-label">{% trans "Customer Flow" %}</div>
                     <div class="metric-value">
-                        {{ week_totals.total_orders|default:"0" }}
+                        {{ morning_data.week_totals.total_customers|default:"0" }}
                     </div>
-                    <div class="metric-change {% if orders_change >= 0 %}positive{% else %}negative{% endif %}">
-                        <i class="fas fa-arrow-{% if orders_change >= 0 %}up{% else %}down{% endif %}"></i>
-                        <span>{% if orders_change >= 0 %}+{% endif %}{{ orders_change|floatformat:1 }}%</span>
-                        <small>{% trans "vs last week" %}</small>
+                    <div class="metric-change {% if morning_data.customers_change >= 0 %}positive{% else %}negative{% endif %}">
+                        <i class="fas fa-arrow-{% if morning_data.customers_change >= 0 %}up{% else %}down{% endif %}"></i>
+                        <span>{% if morning_data.customers_change >= 0 %}+{% endif %}{{ morning_data.customers_change|floatformat:1 }}%</span>
+                        <small>{% trans "vs last period" %}</small>
                     </div>
-                    <div class="metric-insight">
-                        <i class="fas fa-lightbulb text-success"></i>
-                        <small>{% trans "Growing customer base" %}</small>
+                    <div class="metric-info-icon" onclick="showMetricInfo('customer_flow')">
+                        <i class="fas fa-info-circle"></i>
                     </div>
                 </div>
             </div>
@@ -131,21 +130,18 @@
                     </div>
                     <div class="metric-label">{% trans "Cost Health" %}</div>
                     <div class="metric-value">
-                        {{ week_totals.avg_food_cost_pct|floatformat:1|default:"0" }}%
+                        {% if morning_data.week_totals.period_food_cost_pct is not None %}
+                            {{ morning_data.week_totals.period_food_cost_pct|floatformat:1|default:"0" }}%
+                        {% else %}
+                            {{ morning_data.week_totals.avg_food_cost_pct|floatformat:1|default:"0" }}%
+                        {% endif %}
                     </div>
                     <div class="metric-change neutral">
                         <i class="fas fa-minus"></i>
                         <span>0.0%</span>
-                        <small>{% trans "vs last week" %}</small>
                     </div>
-                    <div class="metric-insight">
-                        {% if week_totals.avg_food_cost_pct > 35 %}
-                            <i class="fas fa-exclamation-triangle text-error"></i>
-                            <small>{% trans "Above target - review pricing" %}</small>
-                        {% else %}
-                            <i class="fas fa-check-circle text-success"></i>
-                            <small>{% trans "Within optimal range" %}</small>
-                        {% endif %}
+                    <div class="metric-info-icon" onclick="showMetricInfo('food_cost')">
+                        <i class="fas fa-info-circle"></i>
                     </div>
                 </div>
             </div>
@@ -153,24 +149,58 @@
             <div class="col-lg-3 col-md-6 mb-3">
                 <div class="metric-card info">
                     <div class="metric-icon info">
-                        <i class="fas fa-users"></i>
+                        <i class="fas fa-shopping-cart"></i>
                     </div>
-                    <div class="metric-label">{% trans "Customer Value" %}</div>
+                    <div class="metric-label">{% trans "Order Flow" %}</div>
                     <div class="metric-value">
-                        {% if yesterday and yesterday.average_order_value %}
-                            {{ yesterday.average_order_value|floatformat:0 }} FCFA
-                        {% else %}
-                            0 FCFA
-                        {% endif %}
+                        {{ morning_data.week_totals.total_orders|default:"0" }}
                     </div>
-                    <div class="metric-change positive">
-                        <i class="fas fa-arrow-up"></i>
-                        <span>+5.2%</span>
-                        <small>{% trans "vs last week" %}</small>
+                    <div class="metric-change {% if morning_data.orders_change >= 0 %}positive{% else %}negative{% endif %}">
+                        <i class="fas fa-arrow-{% if morning_data.orders_change >= 0 %}up{% else %}down{% endif %}"></i>
+                        <span>{% if morning_data.orders_change >= 0 %}+{% endif %}{{ morning_data.orders_change|floatformat:1 }}%</span>
+                        <small>{% trans "vs last period" %}</small>
                     </div>
-                    <div class="metric-insight">
-                        <i class="fas fa-lightbulb text-info"></i>
-                        <small>{% trans "Customers spending more per visit" %}</small>
+                    <div class="metric-info-icon" onclick="showMetricInfo('orders')">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Breakdown -->
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-3">
+                <div class="metric-card secondary">
+                    <div class="metric-icon secondary">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div class="metric-label">{% trans "Registered Customers" %}</div>
+                    <div class="metric-value">
+                        {{ morning_data.week_totals.registered_customers|default:"0" }}
+                    </div>
+                    <div class="metric-subtitle">
+                        <small>{% trans "Loyal customers with accounts" %}</small>
+                    </div>
+                    <div class="metric-info-icon" onclick="showMetricInfo('registered_customers')">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6 mb-3">
+                <div class="metric-card tertiary">
+                    <div class="metric-icon tertiary">
+                        <i class="fas fa-user-clock"></i>
+                    </div>
+                    <div class="metric-label">{% trans "Walk-in Customers" %}</div>
+                    <div class="metric-value">
+                        {{ morning_data.week_totals.walk_in_customers|default:"0" }}
+                    </div>
+                    <div class="metric-subtitle">
+                        <small>{% trans "New and casual customers" %}</small>
+                    </div>
+                    <div class="metric-info-icon" onclick="showMetricInfo('walk_in_customers')">
+                        <i class="fas fa-info-circle"></i>
                     </div>
                 </div>
             </div>
@@ -179,15 +209,15 @@
         <!-- Revenue Story Preview -->
         <div class="row mb-4">
             <div class="col-lg-8 mb-4">
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <h3 class="chart-title">
+                <div class="story-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
                             <i class="fas fa-chart-line text-primary me-2"></i>
                             {% trans "Revenue Journey" %}
                         </h3>
-                        <p class="chart-narrative">{% trans "Follow the money - see how our daily performance builds our success story" %}</p>
+                        <p class="card-subtitle">{% trans "Follow the money - see how our daily performance builds our success story" %}</p>
                         <div class="chart-actions">
-                            <button class="btn-african btn-african-outline chart-toggle" data-chart-id="revenue-chart" data-chart-type="Revenue">
+                            <button class="btn-african btn-african-primary chart-toggle" data-chart-id="revenue-chart" data-chart-type="Line">
                                 <i class="fas fa-chart-line"></i>
                                 {% trans "Line" %}
                             </button>
@@ -197,28 +227,52 @@
                             </button>
                         </div>
                     </div>
-                    <div class="chart-canvas">
-                        <canvas id="revenueChart" data-chart-type="Revenue" data-chart-id="revenue-chart"></canvas>
-                        <div class="loading-overlay" style="display: none;">
-                            <div class="loading-spinner"></div>
+                    <div class="card-body">
+                        <div class="chart-canvas" style="position: relative; height: 300px;">
+                            <canvas id="revenueChart" data-chart-type="Revenue" data-chart-id="revenue-chart"></canvas>
+                            <div class="loading-overlay" style="display: none;">
+                                <div class="loading-spinner"></div>
+                            </div>
+                            <div id="revenueChartNoData" class="no-data-message" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #666;">
+                                <i class="fas fa-chart-line fa-3x mb-3"></i>
+                                <h5>{% trans "No Revenue Data Available" %}</h5>
+                                <p>{% trans "Revenue data will appear here once you have sales transactions." %}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
             
             <div class="col-lg-4 mb-4">
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <h3 class="chart-title">
+                <div class="story-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
                             <i class="fas fa-chart-pie text-secondary me-2"></i>
-                            {% trans "Menu Performance" %}
+                            {% trans "Sales by Category" %}
                         </h3>
-                        <p class="chart-narrative">{% trans "Which dishes are telling the best stories?" %}</p>
+                        <p class="card-subtitle">{% trans "Revenue breakdown by product categories" %}</p>
+                        <div class="chart-actions">
+                            <button class="btn-african btn-african-primary chart-toggle" data-chart-id="category-chart" data-chart-type="Pie">
+                                <i class="fas fa-chart-pie"></i>
+                                {% trans "Pie" %}
+                            </button>
+                            <button class="btn-african btn-african-outline chart-toggle" data-chart-id="category-chart" data-chart-type="Doughnut">
+                                <i class="fas fa-circle"></i>
+                                {% trans "Doughnut" %}
+                            </button>
+                        </div>
                     </div>
-                    <div class="chart-canvas">
-                        <canvas id="categoryChart" data-chart-type="Category" data-chart-id="category-chart"></canvas>
-                        <div class="loading-overlay" style="display: none;">
-                            <div class="loading-spinner"></div>
+                    <div class="card-body">
+                        <div class="chart-canvas" style="position: relative; height: 300px;">
+                            <canvas id="categoryChart" data-chart-type="Category" data-chart-id="category-chart"></canvas>
+                            <div class="loading-overlay" style="display: none;">
+                                <div class="loading-spinner"></div>
+                            </div>
+                            <div id="categoryChartNoData" class="no-data-message" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #666;">
+                                <i class="fas fa-chart-pie fa-3x mb-3"></i>
+                                <h5>{% trans "No Category Data Available" %}</h5>
+                                <p>{% trans "Category data will appear here once you have sales transactions." %}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -228,15 +282,16 @@
         <!-- Quick Actions & Insights -->
         <div class="row">
             <div class="col-lg-6 mb-4">
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <h3 class="chart-title">
+                <div class="story-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
                             <i class="fas fa-star text-warning me-2"></i>
-                            {% trans "Yesterday's Champions" %}
+                            {% trans "Champion of" %} {{ date_range.end|date:"M d, Y" }}
                         </h3>
-                        <p class="chart-narrative">{% trans "Our top-performing dishes that made customers happy" %}</p>
+                        <p class="card-subtitle">{% trans "Our top-performing dishes for the selected period ending" %} {{ date_range.end|date:"M d, Y" }}</p>
                     </div>
-                    <div class="data-table-container">
+                    <div class="card-body">
+                        <div class="data-table-container">
                         {% if top_products %}
                             <table class="data-table">
                                 <thead>
@@ -251,7 +306,7 @@
                                     {% for product in top_products %}
                                     <tr>
                                         <td>
-                                            <strong>{{ product.product__name }}</strong>
+                                            <strong>{{ product.product_name }}</strong>
                                         </td>
                                         <td>{{ product.total_revenue|floatformat:0 }} FCFA</td>
                                         <td>{{ product.total_quantity }}</td>
@@ -269,41 +324,42 @@
                                 <p class="text-muted">{% trans "Product sales data will appear here" %}</p>
                             </div>
                         {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
             
             <div class="col-lg-6 mb-4">
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <h3 class="chart-title">
+                <div class="story-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
                             <i class="fas fa-compass text-info me-2"></i>
                             {% trans "Today's Action Plan" %}
                         </h3>
-                        <p class="chart-narrative">{% trans "Based on yesterday's insights, here's what we should focus on today" %}</p>
+                        <p class="card-subtitle">{% trans "Based on insights from the period ending" %} {{ date_range.end|date:"M d, Y" }}{% trans ", here's what we should focus on today" %}</p>
                     </div>
-                    <div class="p-african-lg">
+                    <div class="card-body">
                         <div class="row">
                             <div class="col-6 mb-3">
-                                <a href="{% url 'analytics:sales' %}" class="btn-african btn-african-primary w-100">
+                                <a href="#revenue-story" class="btn-african btn-african-primary w-100" onclick="scrollToChapter('revenue-story')">
                                     <i class="fas fa-chart-bar"></i>
                                     {% trans "Revenue Details" %}
                                 </a>
                             </div>
                             <div class="col-6 mb-3">
-                                <a href="{% url 'analytics:costs' %}" class="btn-african btn-african-secondary w-100">
+                                <a href="#cost-chronicles" class="btn-african btn-african-secondary w-100" onclick="scrollToChapter('cost-chronicles')">
                                     <i class="fas fa-calculator"></i>
                                     {% trans "Cost Analysis" %}
                                 </a>
                             </div>
                             <div class="col-6 mb-3">
-                                <a href="{% url 'analytics:recipe_costing' %}" class="btn-african btn-african-outline w-100">
+                                <a href="#recipe-mastery" class="btn-african btn-african-outline w-100" onclick="showRecipeChapter()">
                                     <i class="fas fa-utensils"></i>
                                     {% trans "Recipe Mastery" %}
                                 </a>
                             </div>
                             <div class="col-6 mb-3">
-                                <a href="{% url 'analytics:performance' %}" class="btn-african btn-african-outline w-100">
+                                <a href="#performance-excellence" class="btn-african btn-african-outline w-100" onclick="scrollToChapter('performance-excellence')">
                                     <i class="fas fa-trophy"></i>
                                     {% trans "Performance" %}
                                 </a>
@@ -316,7 +372,7 @@
                             <i class="fas fa-exclamation-triangle"></i>
                             <div>
                                 <strong>{% trans "Cost Alert!" %}</strong><br>
-                                {% trans "Food cost is" %} {{ yesterday.food_cost_percentage|floatformat:1 }}% - {% trans "review pricing strategy" %}
+                                {% trans "Food cost for the period ending" %} {{ date_range.end|date:"M d, Y" }} {% trans "is" %} {{ yesterday.food_cost_percentage|floatformat:1 }}% - {% trans "review pricing strategy" %}
                             </div>
                         </div>
                         {% endif %}
@@ -326,7 +382,7 @@
                             <i class="fas fa-check-circle"></i>
                             <div>
                                 <strong>{% trans "Excellent Performance!" %}</strong><br>
-                                {% trans "Food cost is" %} {{ yesterday.food_cost_percentage|floatformat:1 }}% - {% trans "keep up the great work" %}
+                                {% trans "Food cost for the period ending" %} {{ date_range.end|date:"M d, Y" }} {% trans "is" %} {{ yesterday.food_cost_percentage|floatformat:1 }}% - {% trans "keep up the great work" %}
                             </div>
                         </div>
                         {% endif %}
@@ -339,24 +395,402 @@
     <!-- Chapter 2: Revenue Story -->
     <section id="revenue-story" class="story-chapter-content">
         <div class="chapter-header">
-            <h1 class="chapter-title">
-                <i class="fas fa-chart-line text-primary me-3"></i>
-                {% trans "The Revenue Story" %}
-            </h1>
-            <p class="chapter-narrative">
-                {% trans "Follow the money - from peak hours to customer preferences, understand what drives our success." %}
-            </p>
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="chapter-title">
+                        <i class="fas fa-chart-line text-primary me-3"></i>
+                        {% trans "The Revenue Journey" %}
+                    </h1>
+                    <p class="chapter-narrative">
+                        {% trans "Follow the money - from peak hours to customer preferences, understand what drives our success." %}
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="btn-group" role="group" style="gap: 8px;">
+                        <button type="button" class="btn-african {% if selected_days == 7 %}btn-african-primary{% else %}btn-african-outline{% endif %}" onclick="updateRevenueDateRange(7)">7 Days</button>
+                        <button type="button" class="btn-african {% if selected_days == 30 %}btn-african-primary{% else %}btn-african-outline{% endif %}" onclick="updateRevenueDateRange(30)">30 Days</button>
+                        <button type="button" class="btn-african {% if selected_days == 90 %}btn-african-primary{% else %}btn-african-outline{% endif %}" onclick="updateRevenueDateRange(90)">90 Days</button>
+                    </div>
+                </div>
+            </div>
         </div>
         
+        <!-- Revenue Performance Overview -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card primary">
+                    <div class="metric-icon primary">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div class="metric-label">{% trans "Total Revenue" %}</div>
+                    <div class="metric-value">
+                        {% if revenue_data.revenue_overview.total_metrics.total_revenue %}
+                            {{ revenue_data.revenue_overview.total_metrics.total_revenue|floatformat:0 }} FCFA
+                        {% elif morning_data.week_totals.total_sales %}
+                            {{ morning_data.week_totals.total_sales|floatformat:0 }} FCFA
+                        {% else %}
+                            0 FCFA
+                        {% endif %}
+                    </div>
+                    <div class="metric-change {% if revenue_data.revenue_overview.growth_metrics.period_over_period_growth >= 0 %}positive{% else %}negative{% endif %}">
+                        <i class="fas fa-arrow-{% if revenue_data.revenue_overview.growth_metrics.period_over_period_growth >= 0 %}up{% else %}down{% endif %}"></i>
+                        <span>{% if revenue_data.revenue_overview.growth_metrics.period_over_period_growth >= 0 %}+{% endif %}{{ revenue_data.revenue_overview.growth_metrics.period_over_period_growth|floatformat:1 }}%</span>
+                        <small>{% trans "vs last period" %}</small>
+                    </div>
+                    <div class="metric-info-icon" onclick="showMetricInfo('revenue')">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card success">
+                    <div class="metric-icon success">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="metric-label">{% trans "Total Orders" %}</div>
+                    <div class="metric-value">
+                        {% if revenue_data.revenue_overview.total_metrics.total_orders %}
+                            {{ revenue_data.revenue_overview.total_metrics.total_orders }}
+                        {% else %}
+                            {{ morning_data.week_totals.total_orders|default:"0" }}
+                        {% endif %}
+                    </div>
+                    <div class="metric-insight">
+                        <i class="fas fa-lightbulb text-success"></i>
+                        {% if revenue_data.revenue_overview.average_metrics.avg_order_value %}
+                            {{ revenue_data.revenue_overview.average_metrics.avg_order_value|floatformat:0 }} FCFA avg
+                        {% else %}
+                            {% trans "Average per order" %}
+                        {% endif %}
+                    </div>
+                    <div class="metric-info-icon" onclick="showMetricInfo('orders')">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card info">
+                    <div class="metric-icon info">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="metric-label">{% trans "Total Customers" %}</div>
+                    <div class="metric-value">
+                        {% if revenue_data.revenue_overview.total_metrics.total_customers %}
+                            {{ revenue_data.revenue_overview.total_metrics.total_customers }}
+                        {% else %}
+                            {{ morning_data.week_totals.total_customers|default:"0" }}
+                        {% endif %}
+                    </div>
+                    <div class="metric-insight">
+                        <i class="fas fa-lightbulb text-info"></i>
+                        {% if revenue_data.revenue_overview.average_metrics.avg_ticket_size %}
+                            {{ revenue_data.revenue_overview.average_metrics.avg_ticket_size|floatformat:0 }} FCFA avg
+                        {% else %}
+                            {% trans "Average per customer" %}
+                        {% endif %}
+                    </div>
+                    <div class="metric-info-icon" onclick="showMetricInfo('customers')">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card warning">
+                    <div class="metric-icon warning">
+                        <i class="fas fa-trophy"></i>
+                    </div>
+                    <div class="metric-label">{% trans "Performance Grade" %}</div>
+                    <div class="metric-value">
+                        {% if revenue_data.revenue_overview.performance_analysis.performance_grade %}
+                            <span class="performance-grade grade-{{ revenue_data.revenue_overview.performance_analysis.performance_grade|lower }}">
+                                {{ revenue_data.revenue_overview.performance_analysis.performance_grade }}
+                            </span>
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                    <div class="metric-insight">
+                        <i class="fas fa-lightbulb text-warning"></i>
+                        {% if revenue_data.revenue_overview.performance_analysis.size_category %}
+                            {{ revenue_data.revenue_overview.performance_analysis.size_category|title }}
+                        {% else %}
+                            {% trans "Performance rating" %}
+                        {% endif %}
+                    </div>
+                    <div class="metric-info-icon" onclick="showMetricInfo('performance')">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metric Info Modal -->
+        <div id="metricInfoModal" class="modal fade" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="metricInfoTitle">Metric Information</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="metricInfoBody">
+                        <!-- Content will be populated by JavaScript -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Revenue Charts Row -->
+        <div class="row mb-4">
+            <div class="col-lg-8">
+                <div class="story-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-chart-line text-primary me-2"></i>
+                            {% trans "Daily Revenue Trends" %}
+                        </h3>
+                        <p class="card-subtitle">{% trans "Track daily revenue performance and identify patterns" %}</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-canvas" style="position: relative; height: 300px;">
+                            <canvas id="dailyRevenueChart"></canvas>
+                            <div class="loading-overlay" style="display: none;">
+                                <div class="loading-spinner"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="story-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-chart-pie text-secondary me-2"></i>
+                            {% trans "Revenue by Category" %}
+                        </h3>
+                        <p class="card-subtitle">{% trans "Which categories drive our revenue?" %}</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-canvas" style="position: relative; height: 300px;">
+                            <canvas id="revenueCategoryChart"></canvas>
+                            <div class="loading-overlay" style="display: none;">
+                                <div class="loading-spinner"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Time Analysis and Payment Methods -->
+        <div class="row mb-4">
+            <div class="col-lg-6">
+                <div class="story-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-clock text-info me-2"></i>
+                            {% trans "Revenue by Day of Week" %}
+                        </h3>
+                        <p class="card-subtitle">{% trans "Identify peak days and optimize operations" %}</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-canvas" style="position: relative; height: 250px;">
+                            <canvas id="timeBasedChart"></canvas>
+                            <div class="loading-overlay" style="display: none;">
+                                <div class="loading-spinner"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6">
+                <div class="story-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-credit-card text-success me-2"></i>
+                            {% trans "Payment Method Breakdown" %}
+                        </h3>
+                        <p class="card-subtitle">{% trans "Understand customer payment preferences" %}</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-canvas" style="position: relative; height: 250px;">
+                            <canvas id="paymentChart"></canvas>
+                            <div class="loading-overlay" style="display: none;">
+                                <div class="loading-spinner"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Products Chart -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="story-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-star text-warning me-2"></i>
+                            {% trans "Top Performing Products" %}
+                        </h3>
+                        <p class="card-subtitle">{% trans "Our best-selling items and their performance" %}</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-canvas" style="position: relative; height: 300px;">
+                            <canvas id="productChart"></canvas>
+                            <div class="loading-overlay" style="display: none;">
+                                <div class="loading-spinner"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Revenue Insights and Analysis -->
         <div class="row">
-            <div class="col-12 text-center">
-                <div class="coming-soon-card">
-                    <i class="fas fa-chart-line fa-4x text-primary mb-3"></i>
-                    <h3>{% trans "Revenue Story Coming Soon" %}</h3>
-                    <p>{% trans "Detailed revenue analysis with customer behavior insights" %}</p>
-                    <a href="{% url 'analytics:sales' %}" class="btn-african btn-african-primary">
-                        {% trans "View Sales Analytics" %}
-                    </a>
+            <!-- Category Performance -->
+            <div class="col-lg-6 mb-4">
+                <div class="story-card" id="top-categories-section">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-chart-bar text-primary me-2"></i>
+                            {% trans "Top Categories" %}
+                        </h3>
+                        <p class="card-subtitle">{% trans "Category performance analysis" %}</p>
+                    </div>
+                    <div class="card-body" id="top-categories-body">
+                        {% if top_categories and 'error' not in top_categories %}
+                            {% for category in top_categories.categories|slice:":5" %}
+                            <div class="category-performance-item">
+                                <div class="category-info">
+                                    <div class="category-name">{{ category.category_name }}</div>
+                                    <div class="category-details">
+                                        <small>{{ category.total_quantity }} units sold</small>
+                                    </div>
+                                </div>
+                                <div class="category-stats">
+                                    <div class="category-revenue">{{ category.total_revenue|floatformat:0 }} FCFA</div>
+                                    <div class="performance-grade grade-{{ category.performance_grade|lower }}">{{ category.performance_grade }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">
+                                <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                                <h4>{% trans "No Category Data Available" %}</h4>
+                                <p>{% trans "Category performance data will appear here once you have sales transactions." %}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revenue Insights -->
+            <div class="col-lg-6 mb-4">
+                <div class="story-card" id="revenue-insights-section">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-lightbulb text-warning me-2"></i>
+                            {% trans "Revenue Insights" %}
+                        </h3>
+                        <p class="card-subtitle">{% trans "Key insights and recommendations" %}</p>
+                    </div>
+                    <div class="card-body" id="revenue-insights-body">
+                        {% if insights %}
+                            <!-- Performance Insights -->
+                            {% if insights.revenue_performance %}
+                                {% for insight in insights.revenue_performance %}
+                                <div class="insight-item">
+                                    <i class="fas fa-chart-line text-primary me-2"></i>
+                                    {{ insight }}
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+
+                            <!-- Category Insights -->
+                            {% if insights.category_insights %}
+                                {% for insight in insights.category_insights %}
+                                <div class="insight-item">
+                                    <i class="fas fa-chart-pie text-secondary me-2"></i>
+                                    {{ insight }}
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+
+                            <!-- Product Insights -->
+                            {% if insights.product_insights %}
+                                {% for insight in insights.product_insights %}
+                                <div class="insight-item">
+                                    <i class="fas fa-star text-warning me-2"></i>
+                                    {{ insight }}
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+
+                            <!-- Time Insights -->
+                            {% if insights.time_insights %}
+                                {% for insight in insights.time_insights %}
+                                <div class="insight-item">
+                                    <i class="fas fa-clock text-info me-2"></i>
+                                    {{ insight }}
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+
+                            <!-- Growth Insights -->
+                            {% if insights.growth_insights %}
+                                {% for insight in insights.growth_insights %}
+                                <div class="insight-item">
+                                    <i class="fas fa-trending-up text-success me-2"></i>
+                                    {{ insight }}
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+
+                            <!-- Payment Insights -->
+                            {% if insights.payment_insights %}
+                                {% for insight in insights.payment_insights %}
+                                <div class="insight-item">
+                                    <i class="fas fa-credit-card text-success me-2"></i>
+                                    {{ insight }}
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+
+                            <!-- Recommendations -->
+                            {% if insights.recommendations %}
+                                <h5 class="mt-3">{% trans "Strategic Recommendations:" %}</h5>
+                                {% for recommendation in insights.recommendations %}
+                                <div class="recommendation-item priority-{{ recommendation.priority }}">
+                                    <div class="recommendation-header">
+                                        <strong>{{ recommendation.category }}</strong>
+                                        <span class="priority-badge priority-{{ recommendation.priority }}">
+                                            {{ recommendation.priority|title }} Priority
+                                        </span>
+                                    </div>
+                                    <div class="recommendation-action">{{ recommendation.action }}</div>
+                                    <div class="recommendation-impact">
+                                        <small><strong>{% trans "Expected Impact:" %}</strong> {{ recommendation.impact }}</small>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        {% else %}
+                            <div class="empty-state">
+                                <i class="fas fa-lightbulb fa-3x text-muted mb-3"></i>
+                                <h4>{% trans "No Insights Available" %}</h4>
+                                <p>{% trans "Revenue insights will appear here once you have sufficient data." %}</p>
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -365,50 +799,418 @@
     <!-- Chapter 3: Cost Chronicles -->
     <section id="cost-chronicles" class="story-chapter-content">
         <div class="chapter-header">
-            <h1 class="chapter-title">
-                <i class="fas fa-calculator text-secondary me-3"></i>
-                {% trans "Cost Control Chronicles" %}
-            </h1>
-            <p class="chapter-narrative">
-                {% trans "Every ingredient tells a story - from farm to plate, track how costs impact our profitability." %}
-            </p>
-        </div>
-        
-        <div class="row">
-            <div class="col-12 text-center">
-                <div class="coming-soon-card">
-                    <i class="fas fa-calculator fa-4x text-secondary mb-3"></i>
-                    <h3>{% trans "Cost Chronicles Coming Soon" %}</h3>
-                    <p>{% trans "Comprehensive cost analysis and optimization insights" %}</p>
-                    <a href="{% url 'analytics:costs' %}" class="btn-african btn-african-secondary">
-                        {% trans "View Cost Analytics" %}
-                    </a>
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="chapter-title">
+                        <i class="fas fa-calculator text-secondary me-3"></i>
+                        {% trans "Cost Control Chronicles" %}
+                    </h1>
+                    <p class="chapter-narrative">
+                        {% trans "Every ingredient tells a story - from farm to plate, track how costs impact our profitability." %}
+                    </p>
+                    <p class="chapter-subtitle">
+                        {% blocktrans %}Cost analysis for {{ date_range.start|date:"M d" }} to {{ date_range.end|date:"M d, Y" }}{% endblocktrans %}
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="btn-group" role="group" style="gap: 8px;">
+                        <button type="button" class="btn-african {% if selected_days == 7 %}btn-african-primary{% else %}btn-african-outline{% endif %}" onclick="updateCostDateRange(7)">7 Days</button>
+                        <button type="button" class="btn-african {% if selected_days == 30 %}btn-african-primary{% else %}btn-african-outline{% endif %}" onclick="updateCostDateRange(30)">30 Days</button>
+                        <button type="button" class="btn-african {% if selected_days == 90 %}btn-african-primary{% else %}btn-african-outline{% endif %}" onclick="updateCostDateRange(90)">90 Days</button>
+                    </div>
                 </div>
             </div>
         </div>
+
+
+
+        {% if cost_analytics.error or not cost_analytics %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                {% if cost_analytics.error %}
+                    {{ cost_analytics.error }}
+                {% else %}
+                    {% trans "Cost analytics data is not available. Please ensure you have cost data in your system." %}
+                {% endif %}
+            </div>
+        {% else %}
+            <!-- Cost Health Overview -->
+            <div class="row mb-4">
+                {% if not cost_metrics or cost_metrics.food_cost_percentage == 0 %}
+                    <!-- Fallback when no cost data is available -->
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            {% trans "Cost analytics data is being loaded. Please ensure you have cost data in your system." %}
+
+                        </div>
+                    </div>
+                {% else %}
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="metric-card {% if cost_metrics.food_cost_grade == 'A' %}success{% elif cost_metrics.food_cost_grade == 'B' %}warning{% else %}danger{% endif %}">
+                        <div class="metric-icon {% if cost_metrics.food_cost_grade == 'A' %}success{% elif cost_metrics.food_cost_grade == 'B' %}warning{% else %}danger{% endif %}">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="metric-label">{% trans "Food Cost %" %}</div>
+                        <div class="metric-value">{{ cost_metrics.food_cost_percentage|floatformat:1|default:"0" }}%</div>
+                        <div class="metric-grade">Grade: {{ cost_metrics.food_cost_grade|default:"N/A" }}</div>
+                        <div class="metric-insight">
+                            <i class="fas fa-lightbulb text-warning"></i>
+                            {% if cost_metrics.food_cost_percentage <= 30 %}
+                                {% trans "Excellent cost control!" %}
+                            {% elif cost_metrics.food_cost_percentage <= 35 %}
+                                {% trans "Good cost management" %}
+                            {% else %}
+                                {% trans "Review portion control" %}
+                            {% endif %}
+                        </div>
+                        <div class="metric-info-icon" onclick="showMetricInfo('food_cost')">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="metric-card {% if cost_metrics.waste_grade == 'A' %}success{% elif cost_metrics.waste_grade == 'B' %}warning{% else %}danger{% endif %}">
+                        <div class="metric-icon {% if cost_metrics.waste_grade == 'A' %}success{% elif cost_metrics.waste_grade == 'B' %}warning{% else %}danger{% endif %}">
+                            <i class="fas fa-trash"></i>
+                        </div>
+                        <div class="metric-label">{% trans "Waste Cost %" %}</div>
+                        <div class="metric-value">{{ cost_metrics.waste_percentage|floatformat:1|default:"0" }}%</div>
+                        <div class="metric-grade">Grade: {{ cost_metrics.waste_grade|default:"N/A" }}</div>
+                        <div class="metric-insight">
+                            <i class="fas fa-lightbulb text-warning"></i>
+                            {% if cost_metrics.waste_percentage <= 2 %}
+                                {% trans "Minimal waste - excellent!" %}
+                            {% elif cost_metrics.waste_percentage <= 3 %}
+                                {% trans "Good waste management" %}
+                            {% else %}
+                                {% trans "Review prep quantities" %}
+                            {% endif %}
+                        </div>
+                        <div class="metric-info-icon" onclick="showMetricInfo('waste_cost')">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="metric-card {% if cost_metrics.overall_grade == 'A' %}success{% elif cost_metrics.overall_grade == 'B' %}warning{% else %}danger{% endif %}">
+                        <div class="metric-icon {% if cost_metrics.overall_grade == 'A' %}success{% elif cost_metrics.overall_grade == 'B' %}warning{% else %}danger{% endif %}">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <div class="metric-label">{% trans "Overall Performance" %}</div>
+                        <div class="metric-value">{{ cost_metrics.overall_score|floatformat:0|default:"0" }}/100</div>
+                        <div class="metric-grade">Grade: {{ cost_metrics.overall_grade|default:"N/A" }}</div>
+                        <div class="metric-info-icon" onclick="showMetricInfo('overall_cost_performance')">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="metric-card {% if cost_metrics.profit_margin >= 65 %}success{% elif cost_metrics.profit_margin >= 55 %}warning{% else %}danger{% endif %}">
+                        <div class="metric-icon {% if cost_metrics.profit_margin >= 65 %}success{% elif cost_metrics.profit_margin >= 55 %}warning{% else %}danger{% endif %}">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="metric-label">{% trans "Gross Profit" %}</div>
+                        <div class="metric-value">{{ cost_metrics.gross_profit|floatformat:0|default:"0" }} FCFA</div>
+                        <div class="metric-change {% if cost_metrics.profit_margin >= 65 %}positive{% else %}negative{% endif %}">
+                            <i class="fas {% if cost_metrics.profit_margin >= 65 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+                            {{ cost_metrics.profit_margin|floatformat:1|default:"0" }}% {% trans "profit margin" %}
+                        </div>
+                        <div class="metric-info-icon" onclick="showMetricInfo('gross_profit')">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cost Alerts Section -->
+            {% if cost_metrics.critical_alerts_count > 0 or cost_metrics.warning_alerts_count > 0 %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="alert-section">
+                        <h4 class="alert-section-title">
+                            <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                            {% trans "Cost Alerts" %}
+                        </h4>
+                        
+                        {% if cost_metrics.critical_alerts_count > 0 %}
+                        <div class="alert alert-danger">
+                            <i class="fas fa-fire me-2"></i>
+                            <strong>{% trans "Critical Alerts:" %}</strong> {{ cost_metrics.critical_alerts_count }}
+                            {% trans "issues require immediate attention" %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if cost_metrics.warning_alerts_count > 0 %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <strong>{% trans "Warning Alerts:" %}</strong> {{ cost_metrics.warning_alerts_count }}
+                            {% trans "issues to monitor" %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+
+
+
+
+            <!-- Cost Breakdown Charts -->
+            <div class="row mb-4">
+                <div class="col-lg-6 mb-3">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h5><i class="fas fa-chart-pie me-2"></i>{% trans "Cost by Category" %}</h5>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="costCategoryChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-6 mb-3">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h5><i class="fas fa-chart-line me-2"></i>{% trans "Food Cost Trend" %}</h5>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="foodCostTrendChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cost Optimization Opportunities -->
+            {% if cost_analytics.optimization_opportunities and cost_analytics.optimization_opportunities.actionable_insights %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="opportunities-section">
+                        <h4 class="opportunities-title">
+                            <i class="fas fa-lightbulb text-warning me-2"></i>
+                            {% trans "Cost Optimization Opportunities" %}
+                        </h4>
+                        <div class="opportunities-grid">
+                            {% for insight in cost_analytics.optimization_opportunities.actionable_insights %}
+                            <div class="opportunity-card">
+                                <i class="fas fa-arrow-up text-success me-2"></i>
+                                {{ insight }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Cost Insights Summary -->
+            {% if cost_analytics.cost_overview and cost_analytics.cost_overview.benchmark_comparison %}
+            <div class="row">
+                <div class="col-12">
+                    <div class="insights-summary">
+                        <h4 class="insights-title">
+                            <i class="fas fa-chart-bar text-info me-2"></i>
+                            {% trans "Cost Performance Summary" %}
+                        </h4>
+                        <div class="insights-content">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="benchmark-item">
+                                        <strong>{% trans "Food Cost Performance:" %}</strong>
+                                        <span class="badge {% if cost_analytics.cost_overview.benchmark_comparison.food_cost == 'excellent' %}bg-success{% elif cost_analytics.cost_overview.benchmark_comparison.food_cost == 'good' %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ cost_analytics.cost_overview.benchmark_comparison.food_cost|title|default:"N/A" }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="benchmark-item">
+                                        <strong>{% trans "Waste Performance:" %}</strong>
+                                        <span class="badge {% if cost_analytics.cost_overview.benchmark_comparison.waste_cost == 'excellent' %}bg-success{% elif cost_analytics.cost_overview.benchmark_comparison.waste_cost == 'good' %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ cost_analytics.cost_overview.benchmark_comparison.waste_cost|title|default:"N/A" }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+                {% endif %}
+        {% endif %}
     </section>
 
     <!-- Chapter 4: Recipe Mastery -->
     <section id="recipe-mastery" class="story-chapter-content">
         <div class="chapter-header">
-            <h1 class="chapter-title">
-                <i class="fas fa-utensils text-warning me-3"></i>
-                {% trans "Recipe Mastery" %}
-            </h1>
-            <p class="chapter-narrative">
-                {% trans "Perfect recipes require perfect costing - see how each ingredient contributes to our signature dishes." %}
-            </p>
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="chapter-title">
+                        <i class="fas fa-utensils text-warning me-3"></i>
+                        {% trans "Recipe Mastery" %}
+                    </h1>
+                    <p class="chapter-narrative">
+                        {% trans "Perfect recipes require perfect costing - see how each ingredient contributes to our signature dishes." %}
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{% url 'recipes:recipe_create' %}" class="btn-african btn-african-primary">
+                        <i class="fas fa-plus me-2"></i>{% trans "Add Recipe" %}
+                    </a>
+                    <a href="{% url 'recipes:recipe_list' %}" class="btn-african btn-african-secondary">
+                        <i class="fas fa-list me-2"></i>{% trans "All Recipes" %}
+                    </a>
+                </div>
+            </div>
         </div>
         
+        <!-- Recipe Cost Summary -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card primary">
+                    <div class="metric-icon primary">
+                        <i class="fas fa-utensils"></i>
+                    </div>
+                    <div class="metric-label">{% trans "Total Recipes" %}</div>
+                    <div class="metric-value">{{ recipe_stats.total_recipes|default:"0" }}</div>
+                    <div class="metric-insight">
+                        <i class="fas fa-lightbulb text-warning"></i>
+                        {% trans "Active recipes in our menu" %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card success">
+                    <div class="metric-icon success">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div class="metric-label">{% trans "Avg Recipe Cost" %}</div>
+                    <div class="metric-value">{{ recipe_stats.avg_cost|floatformat:0|default:"0" }} FCFA</div>
+                    <div class="metric-insight">
+                        <i class="fas fa-lightbulb text-warning"></i>
+                        {% trans "Average cost per recipe" %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card warning">
+                    <div class="metric-icon warning">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="metric-label">{% trans "Cost Efficiency" %}</div>
+                    <div class="metric-value">{{ recipe_stats.cost_efficiency|floatformat:1|default:"0" }}%</div>
+                    <div class="metric-insight">
+                        <i class="fas fa-lightbulb text-warning"></i>
+                        {% trans "Optimal cost management" %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card info">
+                    <div class="metric-icon info">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div class="metric-label">{% trans "Top Recipe" %}</div>
+                    <div class="metric-value">{{ recipe_stats.top_recipe|default:"N/A" }}</div>
+                    <div class="metric-insight">
+                        <i class="fas fa-lightbulb text-warning"></i>
+                        {% trans "Highest profit margin" %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recipe List with Costs -->
         <div class="row">
-            <div class="col-12 text-center">
-                <div class="coming-soon-card">
-                    <i class="fas fa-utensils fa-4x text-warning mb-3"></i>
-                    <h3>{% trans "Recipe Mastery Coming Soon" %}</h3>
-                    <p>{% trans "Detailed recipe costing and ingredient analysis" %}</p>
-                    <a href="{% url 'analytics:recipe_costing' %}" class="btn-african btn-african-warning">
-                        {% trans "View Recipe Costing" %}
-                    </a>
+            <div class="col-12">
+                <div class="story-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-list me-2"></i>
+                            {% trans "Recipe Cost Analysis" %}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if recipes_with_costs %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>{% trans "Recipe" %}</th>
+                                            <th>{% trans "Category" %}</th>
+                                            <th>{% trans "Cost per Portion" %}</th>
+                                            <th>{% trans "Selling Price" %}</th>
+                                            <th>{% trans "Profit Margin" %}</th>
+                                            <th>{% trans "Actions" %}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for recipe in recipes_with_costs %}
+                                            <tr>
+                                                <td>
+                                                    <strong>{{ recipe.dish_name }}</strong>
+                                                    {% if recipe.description %}
+                                                        <br><small class="text-muted">{{ recipe.description|truncatechars:50 }}</small>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-secondary">{{ recipe.category|default:"Other" }}</span>
+                                                </td>
+                                                <td>
+                                                    <strong>{{ recipe.total_cost_per_portion|floatformat:2|default:"0.00" }} FCFA</strong>
+                                                </td>
+                                                <td>
+                                                    {% if recipe.actual_selling_price_per_portion %}
+                                                        <span class="text-success">{{ recipe.actual_selling_price_per_portion|floatformat:2 }} FCFA</span>
+                                                    {% else %}
+                                                        <span class="text-warning">{{ recipe.suggested_selling_price_per_portion|floatformat:2|default:"0.00" }} FCFA</span>
+                                                        <br><small class="text-muted">{% trans "Suggested" %}</small>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if recipe.actual_selling_price_per_portion and recipe.total_cost_per_portion %}
+                                                        <span class="badge profit-margin-badge" 
+                                                              data-selling-price="{{ recipe.actual_selling_price_per_portion }}" 
+                                                              data-cost="{{ recipe.total_cost_per_portion }}">
+                                                            Calculating...
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group" role="group">
+                                                        <a href="{% url 'recipes:recipe_detail' recipe.pk %}" class="btn btn-sm btn-outline-primary">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                        <a href="{% url 'recipes:recipe_update' recipe.pk %}" class="btn btn-sm btn-outline-secondary">
+                                                            <i class="fas fa-edit"></i>
+                                                        </a>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-utensils fa-3x text-muted mb-3"></i>
+                                <h5>{% trans "No Recipes Found" %}</h5>
+                                <p class="text-muted">{% trans "Start by adding your first recipe to see cost analysis." %}</p>
+                                <a href="{% url 'recipes:recipe_create' %}" class="btn-african btn-african-primary">
+                                    <i class="fas fa-plus me-2"></i>{% trans "Add Your First Recipe" %}
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -432,7 +1234,7 @@
                     <i class="fas fa-trophy fa-4x text-success mb-3"></i>
                     <h3>{% trans "Performance Excellence Coming Soon" %}</h3>
                     <p>{% trans "Comprehensive performance analysis and benchmarking" %}</p>
-                    <a href="{% url 'analytics:performance' %}" class="btn-african btn-african-success">
+                    <a href="#performance-excellence" class="btn-african btn-african-success" onclick="scrollToChapter('performance-excellence')">
                         {% trans "View Performance Analysis" %}
                     </a>
                 </div>
@@ -440,11 +1242,384 @@
         </div>
     </section>
 </div>
+
+<!-- Data Elements for JavaScript -->
+<script type="application/json" id="revenue-data">
+{% if revenue_chart_data %}{{ revenue_chart_data|safe }}{% else %}{}{% endif %}
+</script>
+
+<script type="application/json" id="category-data">
+{{ category_data|safe }}
+</script>
+
+<!-- Additional Chart Data -->
+<script type="application/json" id="daily-revenue-chart-data">
+{% if daily_revenue_chart %}{{ daily_revenue_chart|safe }}{% else %}{}{% endif %}
+</script>
+
+<script type="application/json" id="time-based-chart-data">
+{% if time_based_chart %}{{ time_based_chart|safe }}{% else %}{}{% endif %}
+</script>
+
+<script type="application/json" id="payment-chart-data">
+{% if payment_chart %}{{ payment_chart|safe }}{% else %}{}{% endif %}
+</script>
+
+<script type="application/json" id="product-chart-data">
+{% if product_chart %}{{ product_chart|safe }}{% else %}{}{% endif %}
+</script>
+
+<script type="application/json" id="revenue-category-chart-data">
+{% if revenue_category_chart %}{{ revenue_category_chart|safe }}{% else %}{}{% endif %}
+</script>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Performance Grade Styles */
+    .performance-grade {
+        display: inline-block;
+        padding: 8px 20px;
+        border-radius: 25px;
+        font-weight: bold;
+        color: white;
+        font-size: 1.1rem;
+    }
+    
+    /* Filter Bar Styles */
+    .filter-bar {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 10px 15px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .filter-label {
+        color: var(--text-primary, #333);
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+    
+    .filter-select {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 0.9rem;
+        color: var(--text-primary, #333);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .filter-select:hover {
+        border-color: var(--color-primary, #667eea);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .filter-select:focus {
+        outline: none;
+        border-color: var(--color-primary, #667eea);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .grade-a { background-color: #28a745; }
+    .grade-b { background-color: #17a2b8; }
+    .grade-c { background-color: #ffc107; color: #212529; }
+    .grade-d { background-color: #fd7e14; }
+    .grade-f { background-color: #dc3545; }
+
+    /* Category Performance Item Styles */
+    .category-performance-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        margin-bottom: 10px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border-left: 3px solid #667eea;
+    }
+
+    .category-info {
+        flex-grow: 1;
+    }
+
+    .category-name {
+        font-weight: bold;
+        color: #333;
+    }
+
+    .category-details {
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+    .category-stats {
+        text-align: right;
+    }
+
+    .category-revenue {
+        font-weight: bold;
+        color: #667eea;
+        font-size: 1.1rem;
+    }
+
+    /* Insight Item Styles */
+    .insight-item {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-left: 3px solid #667eea;
+        display: flex;
+        align-items: flex-start;
+    }
+
+    .insight-item i {
+        margin-right: 10px;
+        margin-top: 2px;
+    }
+
+    /* Recommendation Item Styles */
+    .recommendation-item {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-left: 4px solid #28a745;
+        transition: transform 0.2s;
+    }
+
+    .recommendation-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .recommendation-item.priority-high {
+        border-left-color: #dc3545;
+        background: #fff5f5;
+    }
+
+    .recommendation-item.priority-medium {
+        border-left-color: #ffc107;
+        background: #fffbf0;
+    }
+
+    .recommendation-item.priority-low {
+        border-left-color: #17a2b8;
+        background: #f0f9ff;
+    }
+
+    .recommendation-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .recommendation-action {
+        margin-bottom: 10px;
+        color: #333;
+    }
+
+    .recommendation-impact {
+        color: #666;
+    }
+
+    .priority-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: bold;
+    }
+
+    .priority-badge.priority-high {
+        background: #dc3545;
+        color: white;
+    }
+
+    .priority-badge.priority-medium {
+        background: #ffc107;
+        color: #212529;
+    }
+
+    .priority-badge.priority-low {
+        background: #17a2b8;
+        color: white;
+    }
+
+
+
+    /* Chart Canvas Styles */
+    .chart-canvas {
+        position: relative;
+        min-height: 200px;
+    }
+
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/chart.js' %}"></script>
 <script>
+// Define all functions first to avoid reference errors
+// Global variables for chart data
+let revenueData = [];
+let categoryData = [];
+let revenueLabels = [];
+let categoryLabels = [];
+let fallbackColors = {
+    primary: '#E07A5F',
+    secondary: '#81B29A',
+    success: '#A8D5BA',
+    info: '#F2CC8F',
+    warning: '#F7DC6F',
+    danger: '#E74C3C'
+};
+
+// Helper function to get CSS variable or fallback
+function getColor(variable, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(variable);
+    return value || fallback;
+}
+
+// Note: Loading states are now handled server-side with page redirects
+
+// Function to restore button states based on URL parameters
+function restoreButtonStates() {
+    console.log('Restoring button states...');
+    const urlParams = new URLSearchParams(window.location.search);
+    const days = urlParams.get('days') || '7';
+    const chapter = urlParams.get('chapter') || 'morning';
+    
+    console.log('Restoring button states for days:', days, 'chapter:', chapter);
+    
+    if (chapter === 'revenue') {
+        // Restore revenue date buttons
+        const revenueButtons = document.querySelectorAll('#revenue-story .btn-african');
+        revenueButtons.forEach(btn => {
+            btn.classList.remove('btn-african-primary');
+            btn.classList.add('btn-african-outline');
+            
+            // Check if this button matches the current days parameter
+            const buttonText = btn.textContent.trim();
+            if (buttonText === days + ' Days') {
+                btn.classList.remove('btn-african-outline');
+                btn.classList.add('btn-african-primary');
+                console.log('Set revenue button as active:', buttonText);
+            }
+        });
+    } else if (chapter === 'costs') {
+        // Restore cost date buttons
+        const costButtons = document.querySelectorAll('#cost-chronicles .btn-african');
+        costButtons.forEach(btn => {
+            btn.classList.remove('btn-african-primary');
+            btn.classList.add('btn-african-outline');
+            
+            // Check if this button matches the current days parameter
+            const buttonText = btn.textContent.trim();
+            if (buttonText === days + ' Days') {
+                btn.classList.remove('btn-african-outline');
+                btn.classList.add('btn-african-primary');
+                console.log('Set cost button as active:', buttonText);
+            }
+        });
+    }
+}
+
+// Function to update revenue date range (now handled server-side)
+window.updateRevenueDateRange = function(days) {
+    console.log('updateRevenueDateRange called with days:', days);
+    console.log('Current URL before update:', window.location.href);
+    
+    // Update button states
+    const buttons = document.querySelectorAll('#revenue-story .btn-african');
+    buttons.forEach(btn => {
+        btn.classList.remove('btn-african-primary');
+        btn.classList.add('btn-african-outline');
+    });
+    
+    // Find the clicked button and make it active
+    const clickedButton = event.target.closest('.btn-african');
+    if (clickedButton) {
+        clickedButton.classList.remove('btn-african-outline');
+        clickedButton.classList.add('btn-african-primary');
+    }
+    
+    // Redirect to the same page with new days parameter and preserve chapter
+    const currentUrl = new URL(window.location);
+    currentUrl.searchParams.set('days', days);
+    currentUrl.searchParams.set('chapter', 'revenue');
+    console.log('Redirecting to URL:', currentUrl.toString());
+    console.log('Chapter parameter being set:', currentUrl.searchParams.get('chapter'));
+    window.location.href = currentUrl.toString();
+};
+
+// Function to update cost date range (now handled server-side)
+window.updateCostDateRange = function(days) {
+    console.log('updateCostDateRange called with days:', days);
+    console.log('Current URL before update:', window.location.href);
+    
+    // Update button states
+    const buttons = document.querySelectorAll('#cost-chronicles .btn-african');
+    buttons.forEach(btn => {
+        btn.classList.remove('btn-african-primary');
+        btn.classList.add('btn-african-outline');
+    });
+    
+    // Find the clicked button and make it active
+    const clickedButton = event.target.closest('.btn-african');
+    if (clickedButton) {
+        clickedButton.classList.remove('btn-african-outline');
+        clickedButton.classList.add('btn-african-primary');
+    }
+    
+    // Redirect to the same page with new days parameter and preserve chapter
+    const currentUrl = new URL(window.location);
+    currentUrl.searchParams.set('days', days);
+    currentUrl.searchParams.set('chapter', 'costs');
+    console.log('Redirecting to URL:', currentUrl.toString());
+    console.log('Chapter parameter being set:', currentUrl.searchParams.get('chapter'));
+    window.location.href = currentUrl.toString();
+};
+
+
+
 // Initialize charts when page loads
 document.addEventListener('DOMContentLoaded', function() {
     // Story navigation
@@ -454,6 +1629,14 @@ document.addEventListener('DOMContentLoaded', function() {
     storyChapters.forEach(chapter => {
         chapter.addEventListener('click', function(e) {
             e.preventDefault();
+            
+            // Get the chapter data attribute
+            const chapterData = this.getAttribute('data-chapter');
+            
+            // Update URL with chapter parameter while preserving other parameters
+            const currentUrl = new URL(window.location);
+            currentUrl.searchParams.set('chapter', chapterData);
+            window.history.pushState({}, '', currentUrl.toString());
             
             // Remove active class from all chapters
             storyChapters.forEach(c => c.classList.remove('active'));
@@ -468,127 +1651,1625 @@ document.addEventListener('DOMContentLoaded', function() {
             if (targetContent) {
                 targetContent.classList.add('active');
             }
+            
+            // Initialize charts for the newly active chapter
+            console.log('Chapter changed to:', chapterData, 'with target ID:', targetId);
+            if (targetId === 'revenue-story' || chapterData === 'revenue') {
+                console.log('Revenue Story chapter activated, initializing revenue charts');
+                setTimeout(() => {
+                    initializeRevenueCharts();
+                }, 100); // Small delay to ensure DOM is updated
+            } else if (targetId === 'cost-chronicles' || chapterData === 'costs') {
+                console.log('Cost Chronicles chapter activated, initializing cost charts');
+                setTimeout(() => {
+                    initializeCostCharts();
+                }, 100); // Small delay to ensure DOM is updated
+            }
         });
     });
-
-    // Revenue Chart
-    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-    const revenueChart = new Chart(revenueCtx, {
-        type: 'line',
-        data: {
-            labels: [
-                {% for summary in recent_summaries %}
-                    '{{ summary.date|date:"d/m" }}'{% if not forloop.last %},{% endif %}
-                {% endfor %}
-            ],
-            datasets: [{
-                label: '{% trans "Revenue (FCFA)" %}',
-                data: [
-                    {% for summary in recent_summaries %}
-                        {{ summary.total_sales|default:0 }}{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                ],
-                borderColor: '#E07A5F',
-                backgroundColor: 'rgba(224, 122, 95, 0.1)',
-                borderWidth: 3,
-                tension: 0.4,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                fill: false
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    labels: {
-                        fontFamily: 'Inter, sans-serif',
-                        color: '#6C757D',
-                        usePointStyle: true,
-                        padding: 20
-                    }
-                },
-                tooltip: {
-                    backgroundColor: '#FFFFFF',
-                    titleColor: '#343A40',
-                    bodyColor: '#6C757D',
-                    borderColor: '#E07A5F',
-                    borderWidth: 1,
-                    cornerRadius: 8
+    
+    // Restore active chapter from URL parameter
+    setTimeout(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const selectedChapter = urlParams.get('chapter');
+        console.log('URL parameters:', window.location.search);
+        console.log('Selected chapter from URL:', selectedChapter);
+        
+        if (selectedChapter) {
+            console.log('Attempting to restore chapter:', selectedChapter);
+            
+            // Remove active class from all chapters
+            storyChapters.forEach(c => c.classList.remove('active'));
+            chapterContents.forEach(c => c.classList.remove('active'));
+            
+            // Find and activate the correct chapter
+            const targetChapter = document.querySelector(`[data-chapter="${selectedChapter}"]`);
+            console.log('Found target chapter element:', targetChapter);
+            
+            if (targetChapter) {
+                targetChapter.classList.add('active');
+                const targetId = targetChapter.getAttribute('href').substring(1);
+                const targetContent = document.getElementById(targetId);
+                console.log('Target content element:', targetContent);
+                
+                if (targetContent) {
+                    targetContent.classList.add('active');
                 }
-            },
-            scales: {
-                x: {
-                    grid: {
-                        color: 'rgba(224, 122, 95, 0.1)'
+                console.log(`Successfully restored chapter: ${selectedChapter}`);
+            } else {
+                console.log(`Could not find chapter element with data-chapter="${selectedChapter}"`);
+            }
+        } else {
+            console.log('No chapter parameter found in URL, using default morning insights');
+            // Set morning insights as default
+            const morningChapter = document.querySelector('[data-chapter="morning"]');
+            const morningContent = document.getElementById('morning-insights');
+            if (morningChapter && morningContent) {
+                morningChapter.classList.add('active');
+                morningContent.classList.add('active');
+            }
+        }
+        
+        // Restore button states based on URL parameters
+        restoreButtonStates();
+        
+        // Initialize charts after chapter navigation is set up
+        console.log('Initializing charts after chapter navigation setup...');
+        console.log('Current URL:', window.location.href);
+        console.log('URL parameters:', window.location.search);
+        
+        // Add a longer delay to ensure all DOM elements are fully loaded
+        setTimeout(() => {
+            console.log('Starting chart initialization with delay...');
+            initializeCharts();
+        }, 200);
+    }, 100); // Small delay to ensure DOM is ready
+
+
+    
+         // Function to create revenue chart configuration
+     function createRevenueChartConfig(type = 'line') {
+         const baseConfig = {
+             data: {
+                 labels: revenueLabels,
+                 datasets: [{
+                     label: '{% trans "Revenue (FCFA)" %}',
+                     data: revenueData,
+                     borderColor: getColor('--color-primary', fallbackColors.primary),
+                     backgroundColor: type === 'line' ? 'rgba(224, 122, 95, 0.1)' : getColor('--color-primary', fallbackColors.primary),
+                     borderWidth: 3,
+                     tension: 0.4,
+                     pointRadius: 4,
+                     pointHoverRadius: 6,
+                     fill: type === 'line' ? false : true,
+                     // Bar width configuration
+                     barPercentage: 0.8,
+                     categoryPercentage: 0.9
+                 }]
+             },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: {
+                            font: {
+                                family: getColor('--font-family-primary', 'Arial, sans-serif')
+                            },
+                            color: getColor('--text-secondary', '#666'),
+                            usePointStyle: true,
+                            padding: 20
+                        }
                     },
-                    ticks: {
-                        color: '#6C757D',
-                        fontFamily: 'Inter, sans-serif'
+                    tooltip: {
+                        backgroundColor: getColor('--bg-secondary', '#fff'),
+                        titleColor: getColor('--text-primary', '#333'),
+                        bodyColor: getColor('--text-secondary', '#666'),
+                        borderColor: getColor('--color-primary', fallbackColors.primary),
+                        borderWidth: 1,
+                        cornerRadius: 8
                     }
                 },
-                y: {
-                    grid: {
-                        color: 'rgba(224, 122, 95, 0.1)'
+                scales: {
+                    x: {
+                        grid: {
+                            color: 'rgba(224, 122, 95, 0.1)'
+                        },
+                        ticks: {
+                            color: getColor('--text-secondary', '#666'),
+                            font: {
+                                family: getColor('--font-family-primary', 'Arial, sans-serif')
+                            }
+                        }
                     },
-                    ticks: {
-                        color: '#6C757D',
-                        fontFamily: 'Inter, sans-serif',
-                        callback: function(value) {
-                            return value.toLocaleString() + ' FCFA';
+                    y: {
+                        grid: {
+                            color: 'rgba(224, 122, 95, 0.1)'
+                        },
+                        ticks: {
+                            color: getColor('--text-secondary', '#666'),
+                            font: {
+                                family: getColor('--font-family-primary', 'Arial, sans-serif')
+                            },
+                            callback: function(value) {
+                                return value.toLocaleString() + ' FCFA';
+                            }
                         }
                     }
                 }
             }
+        };
+        
+        // Set chart type
+        baseConfig.type = type;
+        
+        return baseConfig;
+    }
+    
+    // Function to switch revenue chart type
+    function switchRevenueChartType(newType) {
+        if (!window.revenueChart) {
+            console.error('Revenue chart not found');
+            return;
         }
-    });
-
-    // Category Chart
-    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-    const categoryChart = new Chart(categoryCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['{% trans "Main Dishes" %}', '{% trans "Appetizers" %}', '{% trans "Drinks" %}', '{% trans "Desserts" %}'],
-            datasets: [{
-                label: '{% trans "Sales by Category" %}',
-                data: [45, 25, 20, 10],
-                backgroundColor: ['#E07A5F', '#F2B670', '#6B8E3D', '#81654F'],
-                borderColor: '#FFFFFF',
-                borderWidth: 2,
-                cutout: '60%'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        fontFamily: 'Inter, sans-serif',
-                        color: '#6C757D',
-                        usePointStyle: true,
-                        padding: 20
-                    }
-                },
-                tooltip: {
-                    backgroundColor: '#FFFFFF',
-                    titleColor: '#343A40',
-                    bodyColor: '#6C757D',
-                    borderColor: '#E07A5F',
-                    borderWidth: 1,
-                    cornerRadius: 8
-                }
+        
+        try {
+            // Update chart type
+            window.revenueChart.config.type = newType;
+            
+                         // Update dataset configuration based on type
+             const dataset = window.revenueChart.data.datasets[0];
+             if (newType === 'line') {
+                 dataset.backgroundColor = 'rgba(224, 122, 95, 0.1)';
+                 dataset.fill = false;
+                 // Remove bar-specific properties for line chart
+                 delete dataset.barPercentage;
+                 delete dataset.categoryPercentage;
+             } else if (newType === 'bar') {
+                 dataset.backgroundColor = getColor('--color-primary', fallbackColors.primary);
+                 dataset.fill = true;
+                 // Add bar width configuration
+                 dataset.barPercentage = 0.8;
+                 dataset.categoryPercentage = 0.9;
+             }
+            
+            // Update chart
+            window.revenueChart.update();
+            
+            console.log('Revenue chart switched to', newType, 'type');
+        } catch (error) {
+            console.error('Error switching revenue chart type:', error);
+        }
+    }
+    
+    // Initialize charts only if canvas elements exist and have data
+    function initializeCharts() {
+        console.log('Initializing charts...');
+        console.log('Recent summaries count:', {{ recent_summaries|length }});
+        console.log('Category sales count:', {{ category_sales|length }});
+        
+        // Check if Chart.js is loaded
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js is not loaded yet, retrying in 100ms...');
+            setTimeout(initializeCharts, 100);
+            return;
+        }
+        
+        console.log('Chart.js is loaded, proceeding with initialization');
+        
+        // Get current chapter from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentChapter = urlParams.get('chapter') || 'morning';
+        console.log('Current chapter for chart initialization:', currentChapter);
+        
+        // Debug: Check what canvases exist
+        console.log('Checking for canvas elements:');
+        console.log('revenueChart canvas:', document.getElementById('revenueChart'));
+        console.log('categoryChart canvas:', document.getElementById('categoryChart'));
+        console.log('dailyRevenueChart canvas:', document.getElementById('dailyRevenueChart'));
+        console.log('revenueCategoryChart canvas:', document.getElementById('revenueCategoryChart'));
+        console.log('timeBasedChart canvas:', document.getElementById('timeBasedChart'));
+        console.log('paymentChart canvas:', document.getElementById('paymentChart'));
+        console.log('productChart canvas:', document.getElementById('productChart'));
+        
+        // Parse data from JSON elements first
+        const revenueDataElement = document.getElementById('revenue-data');
+        const categoryDataElement = document.getElementById('category-data');
+        
+        if (revenueDataElement) {
+            try {
+                const data = JSON.parse(revenueDataElement.textContent);
+                revenueData = data.revenue || [];
+                revenueLabels = data.labels || [];
+                console.log('Successfully parsed revenue data');
+            } catch (e) {
+                console.error('Error parsing revenue data:', e);
+                revenueData = [];
+                revenueLabels = [];
+            }
+        } else {
+            console.log('Revenue data element not found');
+            revenueData = [];
+            revenueLabels = [];
+        }
+        
+        if (categoryDataElement) {
+            try {
+                const data = JSON.parse(categoryDataElement.textContent);
+                categoryData = data.revenue || [];
+                categoryLabels = data.labels || [];
+                console.log('Successfully parsed category data');
+            } catch (e) {
+                console.error('Error parsing category data:', e);
+                categoryData = [];
+                categoryLabels = [];
+            }
+        } else {
+            console.log('Category data element not found');
+            categoryData = [];
+            categoryLabels = [];
+        }
+        
+        console.log('Revenue data:', revenueData);
+        console.log('Revenue data length:', revenueData.length);
+        console.log('Revenue labels:', revenueLabels);
+        console.log('Category data:', categoryData);
+        console.log('Category labels:', categoryLabels);
+        
+        // Debug: Check JSON data elements
+        console.log('Checking JSON data elements:');
+        console.log('revenue-data element:', document.getElementById('revenue-data'));
+        console.log('category-data element:', document.getElementById('category-data'));
+        console.log('daily-revenue-chart-data element:', document.getElementById('daily-revenue-chart-data'));
+        console.log('revenue-category-chart-data element:', document.getElementById('revenue-category-chart-data'));
+        console.log('time-based-chart-data element:', document.getElementById('time-based-chart-data'));
+        console.log('payment-chart-data element:', document.getElementById('payment-chart-data'));
+        console.log('product-chart-data element:', document.getElementById('product-chart-data'));
+        
+        // Initialize charts based on current chapter
+        if (currentChapter === 'revenue' || currentChapter === 'morning') {
+            console.log('Initializing revenue charts for chapter:', currentChapter);
+            initializeRevenueCharts();
+        } else {
+            console.log('Current chapter is not revenue or morning, skipping revenue chart initialization');
+        }
+        
+        if (currentChapter === 'costs') {
+            console.log('Initializing cost charts for chapter:', currentChapter);
+            initializeCostCharts();
+        }
+        
+        // Also check if any chapter content is currently visible and initialize charts for it
+        const activeChapterContent = document.querySelector('.story-chapter-content.active');
+        if (activeChapterContent) {
+            const activeChapterId = activeChapterContent.id;
+            console.log('Active chapter content found:', activeChapterId);
+            
+            if (activeChapterId === 'revenue-story' && currentChapter !== 'revenue') {
+                console.log('Revenue story chapter is active, initializing revenue charts');
+                initializeRevenueCharts();
+            } else if (activeChapterId === 'cost-chronicles' && currentChapter !== 'costs') {
+                console.log('Cost chronicles chapter is active, initializing cost charts');
+                initializeCostCharts();
             }
         }
+        
+        // If no chapter is specified, initialize morning insights charts by default
+        if (!currentChapter && !activeChapterContent) {
+            console.log('No chapter specified and no active content, initializing morning insights charts');
+            initializeRevenueCharts();
+        }
+    }
+    
+    // Test function for debugging - can be called from console
+    window.testChartInitialization = function() {
+        console.log('=== TESTING CHART INITIALIZATION ===');
+        console.log('Chart.js available:', typeof Chart !== 'undefined');
+        console.log('getColor function available:', typeof getColor !== 'undefined');
+        console.log('revenueData:', revenueData);
+        console.log('categoryData:', categoryData);
+        console.log('revenueLabels:', revenueLabels);
+        console.log('categoryLabels:', categoryLabels);
+        
+        // Test canvas elements
+        const canvases = ['revenueChart', 'categoryChart', 'dailyRevenueChart', 'revenueCategoryChart', 'timeBasedChart', 'paymentChart', 'productChart'];
+        canvases.forEach(canvasId => {
+            const canvas = document.getElementById(canvasId);
+            console.log(`${canvasId}:`, canvas ? 'Found' : 'Not found');
+            if (canvas) {
+                console.log(`${canvasId} dimensions:`, canvas.width, 'x', canvas.height);
+                console.log(`${canvasId} visible:`, canvas.offsetWidth > 0 && canvas.offsetHeight > 0);
+            }
+        });
+        
+        // Test JSON data elements
+        const dataElements = ['revenue-data', 'category-data', 'daily-revenue-chart-data', 'revenue-category-chart-data', 'time-based-chart-data', 'payment-chart-data', 'product-chart-data'];
+        dataElements.forEach(elementId => {
+            const element = document.getElementById(elementId);
+            console.log(`${elementId}:`, element ? 'Found' : 'Not found');
+            if (element) {
+                console.log(`${elementId} content length:`, element.textContent.length);
+                console.log(`${elementId} content preview:`, element.textContent.substring(0, 100));
+                if (element.textContent.trim()) {
+                    try {
+                        const parsed = JSON.parse(element.textContent);
+                        console.log(`${elementId} parsed successfully:`, parsed);
+                    } catch (e) {
+                        console.error(`${elementId} JSON parse error:`, e);
+                    }
+                }
+            }
+        });
+        
+        console.log('=== END TEST ===');
+    };
+    
+    // Manual chart initialization function for testing
+    window.manualInitializeCharts = function() {
+        console.log('=== MANUAL CHART INITIALIZATION ===');
+        console.log('Current URL:', window.location.href);
+        console.log('URL parameters:', window.location.search);
+        
+        // Force re-parse of data
+        const revenueDataElement = document.getElementById('revenue-data');
+        const categoryDataElement = document.getElementById('category-data');
+        
+        if (revenueDataElement) {
+            try {
+                const data = JSON.parse(revenueDataElement.textContent);
+                revenueData = data.revenue || [];
+                revenueLabels = data.labels || [];
+                console.log('Re-parsed revenue data:', revenueData);
+            } catch (e) {
+                console.error('Error re-parsing revenue data:', e);
+            }
+        }
+        
+        if (categoryDataElement) {
+            try {
+                const data = JSON.parse(categoryDataElement.textContent);
+                categoryData = data.revenue || [];
+                categoryLabels = data.labels || [];
+                console.log('Re-parsed category data:', categoryData);
+            } catch (e) {
+                console.error('Error re-parsing category data:', e);
+            }
+        }
+        
+        // Force chart initialization
+        initializeCharts();
+        console.log('=== MANUAL INITIALIZATION COMPLETE ===');
+    };
+
+    // Initialize Revenue Charts (including main revenue and category charts)
+    function initializeRevenueCharts() {
+        console.log('Initializing revenue charts...');
+        
+        // Check if Chart.js is available
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js is not available for revenue chart initialization');
+            return;
+        }
+        
+        // Destroy existing charts to prevent duplicates
+        if (window.dailyRevenueChart) {
+            console.log('Destroying existing daily revenue chart');
+            try {
+                window.dailyRevenueChart.destroy();
+            } catch (e) {
+                console.log('Error destroying daily revenue chart:', e);
+            }
+            window.dailyRevenueChart = null;
+        }
+        if (window.revenueCategoryChart) {
+            console.log('Destroying existing revenue category chart');
+            try {
+                window.revenueCategoryChart.destroy();
+            } catch (e) {
+                console.log('Error destroying revenue category chart:', e);
+            }
+            window.revenueCategoryChart = null;
+        }
+        if (window.timeBasedChart) {
+            console.log('Destroying existing time based chart');
+            try {
+                window.timeBasedChart.destroy();
+            } catch (e) {
+                console.log('Error destroying time based chart:', e);
+            }
+            window.timeBasedChart = null;
+        }
+        if (window.paymentChart) {
+            console.log('Destroying existing payment chart');
+            try {
+                window.paymentChart.destroy();
+            } catch (e) {
+                console.log('Error destroying payment chart:', e);
+            }
+            window.paymentChart = null;
+        }
+        if (window.productChart) {
+            console.log('Destroying existing product chart');
+            try {
+                window.productChart.destroy();
+            } catch (e) {
+                console.log('Error destroying product chart:', e);
+            }
+            window.productChart = null;
+        }
+        
+        // Get current chapter from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentChapter = urlParams.get('chapter') || 'morning';
+        
+        console.log('Initializing revenue charts for chapter:', currentChapter);
+        
+        // Revenue Chart (for Morning Insights chapter)
+        const revenueCanvas = document.getElementById('revenueChart');
+        if (revenueCanvas) {
+            console.log('Revenue canvas found (Morning Insights)');
+            const revenueCtx = revenueCanvas.getContext('2d');
+                
+            if (revenueData && revenueData.length > 0) {
+                try {
+                    const chartConfig = createRevenueChartConfig('line');
+                    const revenueChart = new Chart(revenueCtx, chartConfig);
+                    
+                    console.log('Revenue chart created successfully');
+                    window.revenueChart = revenueChart;
+                } catch (error) {
+                    console.error('Error creating revenue chart:', error);
+                }
+            } else {
+                console.log('No revenue data available');
+                // Show no data message
+                const noDataElement = document.getElementById('revenueChartNoData');
+                if (noDataElement) {
+                    noDataElement.style.display = 'block';
+                }
+            }
+        } else {
+            console.log('Revenue canvas not found (Morning Insights)');
+        }
+
+        // Category Chart (for Morning Insights chapter)
+        const categoryCanvas = document.getElementById('categoryChart');
+        if (categoryCanvas) {
+            console.log('Category canvas found (Morning Insights)');
+            const categoryCtx = categoryCanvas.getContext('2d');
+            
+            if (categoryData && categoryData.length > 0 && categoryData.some(value => value > 0)) {
+                
+                try {
+                    const categoryChart = new Chart(categoryCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: categoryLabels,
+                            datasets: [{
+                                label: '{% trans "Sales by Category" %}',
+                                data: categoryData,
+                                backgroundColor: [
+                                    getColor('--color-primary', fallbackColors.primary),
+                                    getColor('--color-secondary', fallbackColors.secondary),
+                                    getColor('--color-success', fallbackColors.success),
+                                    getColor('--color-info', fallbackColors.info),
+                                    '#A8D5BA',
+                                    '#F7DC6F',
+                                    '#BB8FCE',
+                                    '#85C1E9'
+                                ],
+                                borderColor: getColor('--bg-secondary', '#fff'),
+                                borderWidth: 2,
+                                cutout: '60%'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        padding: 20,
+                                        usePointStyle: true
+                                    }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return context.label + ': ' + context.parsed.toLocaleString() + ' FCFA';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    
+                    console.log('Category chart created successfully');
+                    window.categoryChart = categoryChart;
+                } catch (error) {
+                    console.error('Error creating category chart:', error);
+                }
+            } else {
+                console.log('No category data available or all values are zero');
+                // Show no data message
+                const noDataElement = document.getElementById('categoryChartNoData');
+                if (noDataElement) {
+                    noDataElement.style.display = 'block';
+                }
+            }
+        } else {
+            console.log('Category canvas not found (Morning Insights)');
+        }
+        
+        // Initialize Revenue Section Charts (for Revenue Story chapter)
+        console.log('Calling initializeRevenueSectionCharts...');
+        initializeRevenueSectionCharts();
+    }
+
+    // Initialize Revenue Section Charts
+    function initializeRevenueSectionCharts() {
+        console.log('Initializing revenue section charts...');
+        
+        // Daily Revenue Chart
+        const dailyRevenueCanvas = document.getElementById('dailyRevenueChart');
+        if (dailyRevenueCanvas) {
+            console.log('Daily revenue canvas found');
+            
+            const dailyRevenueCtx = dailyRevenueCanvas.getContext('2d');
+            
+            try {
+                // Get daily revenue chart data from JSON
+                const dailyRevenueDataElement = document.getElementById('daily-revenue-chart-data');
+                console.log('Daily revenue data element:', dailyRevenueDataElement);
+                
+                let dailyRevenueChartData = {};
+                if (dailyRevenueDataElement && dailyRevenueDataElement.textContent.trim()) {
+                    dailyRevenueChartData = JSON.parse(dailyRevenueDataElement.textContent);
+                    console.log('Parsed daily revenue chart data:', dailyRevenueChartData);
+                } else {
+                    console.log('No daily revenue chart data element found or empty, using fallback data');
+                    // Use the main revenue data as fallback
+                    dailyRevenueChartData = {
+                        labels: revenueLabels,
+                        revenue: revenueData
+                    };
+                }
+                
+                const dailyRevenueLabels = dailyRevenueChartData.labels || [];
+                const dailyRevenueData = dailyRevenueChartData.revenue || [];
+                
+                console.log('Daily revenue labels:', dailyRevenueLabels);
+                console.log('Daily revenue data:', dailyRevenueData);
+                console.log('Daily revenue data length:', dailyRevenueData.length);
+                
+                if (dailyRevenueData.length > 0) {
+                    const dailyRevenueChart = new Chart(dailyRevenueCtx, {
+                        type: 'line',
+                        data: {
+                            labels: dailyRevenueLabels,
+                            datasets: [{
+                                label: '{% trans "Daily Revenue (FCFA)" %}',
+                                data: dailyRevenueData,
+                                borderColor: getColor('--color-primary', fallbackColors.primary),
+                                backgroundColor: 'rgba(224, 122, 95, 0.1)',
+                                borderWidth: 3,
+                                tension: 0.4,
+                                pointRadius: 4,
+                                pointHoverRadius: 6,
+                                fill: false
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    labels: {
+                                        font: {
+                                            family: getColor('--font-family-primary', 'Arial, sans-serif')
+                                        },
+                                        color: getColor('--text-secondary', '#666'),
+                                        usePointStyle: true,
+                                        padding: 20
+                                    }
+                                },
+                                tooltip: {
+                                    backgroundColor: getColor('--bg-secondary', '#fff'),
+                                    titleColor: getColor('--text-primary', '#333'),
+                                    bodyColor: getColor('--text-secondary', '#666'),
+                                    borderColor: getColor('--color-primary', fallbackColors.primary),
+                                    borderWidth: 1,
+                                    cornerRadius: 8
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    grid: {
+                                        color: 'rgba(224, 122, 95, 0.1)'
+                                    },
+                                    ticks: {
+                                        color: getColor('--text-secondary', '#666'),
+                                        font: {
+                                            family: getColor('--font-family-primary', 'Arial, sans-serif')
+                                        }
+                                    }
+                                },
+                                y: {
+                                    grid: {
+                                        color: 'rgba(224, 122, 95, 0.1)'
+                                    },
+                                    ticks: {
+                                        color: getColor('--text-secondary', '#666'),
+                                        font: {
+                                            family: getColor('--font-family-primary', 'Arial, sans-serif')
+                                        },
+                                        callback: function(value) {
+                                            return value.toLocaleString() + ' FCFA';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    
+                    console.log('Daily revenue chart created successfully');
+                    console.log('Daily revenue chart type:', dailyRevenueChart.config.type);
+                    console.log('Daily revenue chart data:', dailyRevenueChart.data);
+                    window.dailyRevenueChart = dailyRevenueChart;
+                } else {
+                    console.log('No daily revenue data available');
+                }
+            } catch (error) {
+                console.error('Error creating daily revenue chart:', error);
+            }
+        } else {
+            console.log('Daily revenue canvas not found');
+        }
+
+        // Revenue Category Chart
+        const revenueCategoryCanvas = document.getElementById('revenueCategoryChart');
+        if (revenueCategoryCanvas) {
+            console.log('Revenue category canvas found');
+            
+            const revenueCategoryCtx = revenueCategoryCanvas.getContext('2d');
+            
+            try {
+                // Get revenue category chart data from JSON
+                const revenueCategoryDataElement = document.getElementById('revenue-category-chart-data');
+                console.log('Revenue category data element:', revenueCategoryDataElement);
+                
+                let revenueCategoryChartData = {};
+                if (revenueCategoryDataElement && revenueCategoryDataElement.textContent.trim()) {
+                    revenueCategoryChartData = JSON.parse(revenueCategoryDataElement.textContent);
+                    console.log('Parsed revenue category chart data:', revenueCategoryChartData);
+                } else {
+                    console.log('No revenue category chart data element found or empty, using fallback data');
+                    // Use the main category data as fallback
+                    revenueCategoryChartData = {
+                        labels: categoryLabels,
+                        revenue: categoryData
+                    };
+                }
+                
+                const revenueCategoryLabels = revenueCategoryChartData.labels || [];
+                const revenueCategoryData = revenueCategoryChartData.revenue || [];
+                
+                console.log('Revenue category labels:', revenueCategoryLabels);
+                console.log('Revenue category data:', revenueCategoryData);
+                console.log('Revenue category data length:', revenueCategoryData.length);
+                
+                if (revenueCategoryData.length > 0 && revenueCategoryData.some(value => value > 0)) {
+                    const revenueCategoryChart = new Chart(revenueCategoryCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: revenueCategoryLabels,
+                            datasets: [{
+                                label: '{% trans "Revenue by Category" %}',
+                                data: revenueCategoryData,
+                                backgroundColor: [
+                                    getColor('--color-primary', fallbackColors.primary),
+                                    getColor('--color-secondary', fallbackColors.secondary),
+                                    getColor('--color-success', fallbackColors.success),
+                                    getColor('--color-info', fallbackColors.info),
+                                    '#A8D5BA',
+                                    '#F7DC6F',
+                                    '#BB8FCE',
+                                    '#85C1E9'
+                                ],
+                                borderColor: getColor('--bg-secondary', '#fff'),
+                                borderWidth: 2,
+                                cutout: '60%'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    display: true,
+                                    labels: {
+                                        font: {
+                                            family: getColor('--font-family-primary', 'Arial, sans-serif')
+                                        },
+                                        color: getColor('--text-secondary', '#666'),
+                                        usePointStyle: true,
+                                        padding: 20
+                                    }
+                                },
+                                tooltip: {
+                                    backgroundColor: getColor('--bg-secondary', '#fff'),
+                                    titleColor: getColor('--text-primary', '#333'),
+                                    bodyColor: getColor('--text-secondary', '#666'),
+                                    borderColor: getColor('--color-primary', fallbackColors.primary),
+                                    borderWidth: 1,
+                                    cornerRadius: 8
+                                }
+                            }
+                        }
+                    });
+                    
+                    console.log('Revenue category chart created successfully');
+                    console.log('Revenue category chart type:', revenueCategoryChart.config.type);
+                    console.log('Revenue category chart data:', revenueCategoryChart.data);
+                    window.revenueCategoryChart = revenueCategoryChart;
+                } else {
+                    console.log('No revenue category data available');
+                }
+            } catch (error) {
+                console.error('Error creating revenue category chart:', error);
+            }
+        } else {
+            console.log('Revenue category canvas not found');
+        }
+
+        // Time Based Chart (Day of Week Revenue)
+        const timeBasedCanvas = document.getElementById('timeBasedChart');
+        if (timeBasedCanvas) {
+            console.log('Time based canvas found');
+            
+            const timeBasedCtx = timeBasedCanvas.getContext('2d');
+            
+            try {
+                // Get time-based chart data from JSON
+                const timeBasedDataElement = document.getElementById('time-based-chart-data');
+                console.log('Time based data element:', timeBasedDataElement);
+                
+                let timeBasedChartData = {};
+                if (timeBasedDataElement && timeBasedDataElement.textContent.trim()) {
+                    timeBasedChartData = JSON.parse(timeBasedDataElement.textContent);
+                    console.log('Parsed time based chart data:', timeBasedChartData);
+                } else {
+                    console.log('No time based chart data element found or empty, using fallback data');
+                    // Use fallback data
+                    timeBasedChartData = {
+                        labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+                        revenue: [0, 0, 0, 0, 0, 0, 0]
+                    };
+                }
+                
+                const daysOfWeek = timeBasedChartData.labels || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                const timeBasedData = timeBasedChartData.revenue || [0, 0, 0, 0, 0, 0, 0];
+                
+                console.log('Time based labels:', daysOfWeek);
+                console.log('Time based data:', timeBasedData);
+                
+                const timeBasedChart = new Chart(timeBasedCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: daysOfWeek,
+                        datasets: [{
+                            label: '{% trans "Revenue by Day" %}',
+                            data: timeBasedData,
+                            backgroundColor: getColor('--color-info', fallbackColors.info),
+                            borderColor: getColor('--color-info', fallbackColors.info),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: getColor('--bg-secondary', '#fff'),
+                                titleColor: getColor('--text-primary', '#333'),
+                                bodyColor: getColor('--text-secondary', '#666'),
+                                borderColor: getColor('--color-info', fallbackColors.info),
+                                borderWidth: 1,
+                                cornerRadius: 8,
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.parsed.y.toLocaleString() + ' FCFA';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    color: getColor('--text-secondary', '#666'),
+                                    font: {
+                                        family: getColor('--font-family-primary', 'Arial, sans-serif')
+                                    }
+                                }
+                            },
+                            y: {
+                                grid: {
+                                    color: 'rgba(0,0,0,0.1)'
+                                },
+                                ticks: {
+                                    color: getColor('--text-secondary', '#666'),
+                                    font: {
+                                        family: getColor('--font-family-primary', 'Arial, sans-serif')
+                                    },
+                                    callback: function(value) {
+                                        return (value / 1000) + 'K';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                console.log('Time based chart created successfully');
+                window.timeBasedChart = timeBasedChart;
+            } catch (error) {
+                console.error('Error creating time based chart:', error);
+            }
+        } else {
+            console.log('Time based canvas not found');
+        }
+
+        // Payment Chart (Payment Method Breakdown)
+        const paymentCanvas = document.getElementById('paymentChart');
+        if (paymentCanvas) {
+            console.log('Payment canvas found');
+            
+            const paymentCtx = paymentCanvas.getContext('2d');
+            
+            try {
+                // Get payment chart data from JSON
+                const paymentDataElement = document.getElementById('payment-chart-data');
+                console.log('Payment data element:', paymentDataElement);
+                
+                let paymentChartData = {};
+                if (paymentDataElement && paymentDataElement.textContent.trim()) {
+                    paymentChartData = JSON.parse(paymentDataElement.textContent);
+                    console.log('Parsed payment chart data:', paymentChartData);
+                } else {
+                    console.log('No payment chart data element found or empty, using fallback data');
+                    // Use fallback data
+                    paymentChartData = {
+                        labels: ['Cash', 'Mobile Money', 'Card', 'Other'],
+                        amounts: [0, 0, 0, 0]
+                    };
+                }
+                
+                const paymentMethods = paymentChartData.labels || ['Cash', 'Mobile Money', 'Card', 'Other'];
+                const paymentAmounts = paymentChartData.amounts || [0, 0, 0, 0];
+                
+                console.log('Payment methods:', paymentMethods);
+                console.log('Payment amounts:', paymentAmounts);
+                
+                const paymentChart = new Chart(paymentCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: paymentMethods,
+                        datasets: [{
+                            label: '{% trans "Payment Methods" %}',
+                            data: paymentAmounts,
+                            backgroundColor: [
+                                getColor('--color-success', fallbackColors.success),
+                                getColor('--color-primary', fallbackColors.primary),
+                                getColor('--color-info', fallbackColors.info),
+                                getColor('--color-secondary', fallbackColors.secondary)
+                            ],
+                            borderColor: getColor('--bg-secondary', '#fff'),
+                            borderWidth: 2,
+                            cutout: '60%'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                display: true,
+                                labels: {
+                                    font: {
+                                        family: getColor('--font-family-primary', 'Arial, sans-serif')
+                                    },
+                                    color: getColor('--text-secondary', '#666'),
+                                    usePointStyle: true,
+                                    padding: 20
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: getColor('--bg-secondary', '#fff'),
+                                titleColor: getColor('--text-primary', '#333'),
+                                bodyColor: getColor('--text-secondary', '#666'),
+                                borderColor: getColor('--color-primary', fallbackColors.primary),
+                                borderWidth: 1,
+                                cornerRadius: 8,
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.label + ': ' + context.parsed.toLocaleString() + ' FCFA';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                console.log('Payment chart created successfully');
+                window.paymentChart = paymentChart;
+            } catch (error) {
+                console.error('Error creating payment chart:', error);
+            }
+        } else {
+            console.log('Payment canvas not found');
+        }
+
+        // Product Chart (Top Performing Products)
+        const productCanvas = document.getElementById('productChart');
+        if (productCanvas) {
+            console.log('Product canvas found');
+            
+            const productCtx = productCanvas.getContext('2d');
+            
+            try {
+                // Get product chart data from JSON
+                const productDataElement = document.getElementById('product-chart-data');
+                console.log('Product data element:', productDataElement);
+                
+                let productChartData = {};
+                if (productDataElement && productDataElement.textContent.trim()) {
+                    productChartData = JSON.parse(productDataElement.textContent);
+                    console.log('Parsed product chart data:', productChartData);
+                } else {
+                    console.log('No product chart data element found or empty, using fallback data');
+                    // Use fallback data
+                    productChartData = {
+                        labels: ['No Data'],
+                        revenue: [0]
+                    };
+                }
+                
+                const productNames = productChartData.labels || ['No Data'];
+                const productRevenue = productChartData.revenue || [0];
+                
+                console.log('Product names:', productNames);
+                console.log('Product revenue:', productRevenue);
+                
+                const productChart = new Chart(productCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: productNames,
+                        datasets: [{
+                            label: '{% trans "Revenue (FCFA)" %}',
+                            data: productRevenue,
+                            backgroundColor: getColor('--color-warning', fallbackColors.warning),
+                            borderColor: getColor('--color-warning', fallbackColors.warning),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: getColor('--bg-secondary', '#fff'),
+                                titleColor: getColor('--text-primary', '#333'),
+                                bodyColor: getColor('--text-secondary', '#666'),
+                                borderColor: getColor('--color-warning', fallbackColors.warning),
+                                borderWidth: 1,
+                                cornerRadius: 8,
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.parsed.x.toLocaleString() + ' FCFA';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    color: 'rgba(0,0,0,0.1)'
+                                },
+                                ticks: {
+                                    color: getColor('--text-secondary', '#666'),
+                                    font: {
+                                        family: getColor('--font-family-primary', 'Arial, sans-serif')
+                                    },
+                                    callback: function(value) {
+                                        return (value / 1000) + 'K';
+                                    }
+                                }
+                            },
+                            y: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    color: getColor('--text-secondary', '#666'),
+                                    font: {
+                                        family: getColor('--font-family-primary', 'Arial, sans-serif')
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                console.log('Product chart created successfully');
+                window.productChart = productChart;
+            } catch (error) {
+                console.error('Error creating product chart:', error);
+            }
+        } else {
+            console.log('Product canvas not found');
+        }
+
+    }
+
+    // Initialize Cost Charts
+    function initializeCostCharts() {
+        console.log('Initializing cost charts...');
+        
+        // Debug: Check what cost analytics data is available
+        console.log('Initializing cost charts...');
+        
+        // Cost Category Chart
+        const costCategoryCanvas = document.getElementById('costCategoryChart');
+        if (costCategoryCanvas) {
+            console.log('Cost category canvas found');
+            const costCategoryCtx = costCategoryCanvas.getContext('2d');
+            
+            // Get cost category data from embedded JSON - handle potential errors
+            let costCategories = [];
+            try {
+                {% if cost_analytics.cost_by_category.categories %}
+                    costCategories = [
+                        {% for category in cost_analytics.cost_by_category.categories %}
+                        {
+                            category_name: "{{ category.category_name }}",
+                            total_cost: parseFloat("{{ category.total_cost|default:0 }}"),
+                            cost_percentage: parseFloat("{{ category.cost_percentage|default:0 }}"),
+                            item_count: parseInt("{{ category.item_count|default:0 }}"),
+                            avg_cost_per_item: parseFloat("{{ category.avg_cost_per_item|default:0 }}")
+                        }{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ];
+                    console.log('Successfully loaded cost categories from Django context');
+                {% else %}
+                    console.log('No cost categories data available');
+                    costCategories = [];
+                {% endif %}
+            } catch (e) {
+                console.error('Error accessing cost categories data:', e);
+                costCategories = [];
+            }
+            
+            console.log('Cost categories data:', costCategories);
+            
+            if (costCategories && costCategories.length > 0) {
+                try {
+                    const costCategoryData = costCategories.map(cat => parseFloat(cat.cost_percentage) || 0);
+                    const costCategoryLabels = costCategories.map(cat => cat.category_name || 'Unknown');
+                    
+                    console.log('Cost category data for chart:', costCategoryData);
+                    console.log('Cost category labels for chart:', costCategoryLabels);
+                    
+                    const costCategoryChart = new Chart(costCategoryCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: costCategoryLabels,
+                            datasets: [{
+                                label: '{% trans "Cost by Category" %}',
+                                data: costCategoryData,
+                                backgroundColor: [
+                                    getColor('--color-primary', fallbackColors.primary),
+                                    getColor('--color-secondary', fallbackColors.secondary),
+                                    getColor('--color-success', fallbackColors.success),
+                                    getColor('--color-info', fallbackColors.info),
+                                    '#A8D5BA',
+                                    '#F7DC6F',
+                                    '#BB8FCE',
+                                    '#85C1E9'
+                                ],
+                                borderColor: getColor('--bg-secondary', '#fff'),
+                                borderWidth: 2,
+                                cutout: '60%'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        padding: 20,
+                                        usePointStyle: true
+                                    }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return context.label + ': ' + context.parsed.toFixed(1) + '%';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    
+                    console.log('Cost category chart created successfully');
+                    window.costCategoryChart = costCategoryChart;
+                } catch (error) {
+                    console.error('Error creating cost category chart:', error);
+                }
+            } else {
+                console.log('No cost category data available');
+            }
+        }
+
+        // Food Cost Trend Chart
+        const foodCostTrendCanvas = document.getElementById('foodCostTrendChart');
+        if (foodCostTrendCanvas) {
+            console.log('Food cost trend canvas found');
+            const foodCostTrendCtx = foodCostTrendCanvas.getContext('2d');
+            
+            // Get food cost trend data from embedded JSON - handle potential errors
+            let foodCostTrendData = [];
+            try {
+                {% if cost_analytics.food_cost_analysis.daily_food_costs %}
+                    foodCostTrendData = [
+                        {% for daily_cost in cost_analytics.food_cost_analysis.daily_food_costs %}
+                        {
+                            date: "{{ daily_cost.date|date:'Y-m-d' }}",
+                            food_cost: parseFloat("{{ daily_cost.food_cost|default:0 }}"),
+                            food_cost_percentage: parseFloat("{{ daily_cost.food_cost_percentage|default:0 }}"),
+                            total_sales: parseFloat("{{ daily_cost.total_sales|default:0 }}"),
+                            waste_cost: parseFloat("{{ daily_cost.waste_cost|default:0 }}")
+                        }{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ];
+                    console.log('Successfully loaded food cost trend data from Django context');
+                {% else %}
+                    console.log('No food cost trend data available');
+                    foodCostTrendData = [];
+                {% endif %}
+            } catch (e) {
+                console.error('Error accessing food cost trend data:', e);
+                foodCostTrendData = [];
+            }
+            
+            console.log('Food cost trend data:', foodCostTrendData);
+            
+            if (foodCostTrendData && foodCostTrendData.length > 0) {
+                try {
+                    const trendLabels = foodCostTrendData.map(item => {
+                        const date = new Date(item.date);
+                        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    });
+                    const trendValues = foodCostTrendData.map(item => parseFloat(item.food_cost_percentage) || 0);
+                    
+                    console.log('Food cost trend labels:', trendLabels);
+                    console.log('Food cost trend values:', trendValues);
+                    
+                    const foodCostTrendChart = new Chart(foodCostTrendCtx, {
+                        type: 'line',
+                        data: {
+                            labels: trendLabels,
+                            datasets: [{
+                                label: '{% trans "Food Cost %" %}',
+                                data: trendValues,
+                                borderColor: getColor('--color-warning', '#ffc107'),
+                                backgroundColor: getColor('--color-warning', '#ffc107'),
+                                borderWidth: 3,
+                                fill: false,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return 'Food Cost: ' + context.parsed.y.toFixed(1) + '%';
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 100,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return value + '%';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    
+                    console.log('Food cost trend chart created successfully');
+                    window.foodCostTrendChart = foodCostTrendChart;
+                } catch (error) {
+                    console.error('Error creating food cost trend chart:', error);
+                }
+            } else {
+                console.log('No food cost trend data available');
+            }
+        }
+    }
+
+    // Check if Chart.js is loaded
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not loaded!');
+        // Show error message
+        const errorMsg = document.createElement('div');
+        errorMsg.style.cssText = 'color: red; text-align: center; padding: 20px; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; background: white; border: 1px solid red; border-radius: 5px;';
+        
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-exclamation-triangle';
+        icon.style.marginRight = '10px';
+        
+        const text = document.createTextNode('Chart.js library not loaded. Please refresh the page.');
+        
+        errorMsg.appendChild(icon);
+        errorMsg.appendChild(text);
+        document.body.appendChild(errorMsg);
+    } else {
+        console.log('Chart.js loaded successfully');
+        
+        // Charts will be initialized after chapter navigation is set up
+    }
+
+    // Calculate profit margins for recipe table
+    function calculateProfitMargins() {
+        const profitBadges = document.querySelectorAll('.profit-margin-badge');
+        profitBadges.forEach(badge => {
+            const sellingPrice = parseFloat(badge.dataset.sellingPrice);
+            const cost = parseFloat(badge.dataset.cost);
+            
+            if (sellingPrice && cost && sellingPrice > cost) {
+                const profitMargin = ((sellingPrice - cost) / sellingPrice) * 100;
+                const formattedMargin = profitMargin.toFixed(1);
+                
+                // Set badge color based on profit margin
+                if (profitMargin >= 60) {
+                    badge.className = 'badge bg-success';
+                } else if (profitMargin >= 40) {
+                    badge.className = 'badge bg-warning';
+                } else {
+                    badge.className = 'badge bg-danger';
+                }
+                
+                badge.textContent = formattedMargin + '%';
+            } else {
+                badge.textContent = '-';
+                badge.className = 'badge text-muted';
+            }
+        });
+    }
+
+    // Calculate profit margins when page loads
+    calculateProfitMargins();
+
+    // Add event listeners for chart toggle buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.chart-toggle')) {
+            const button = e.target.closest('.chart-toggle');
+            const chartType = button.getAttribute('data-chart-type');
+            const chartId = button.getAttribute('data-chart-id');
+            
+            // Remove active class from all toggle buttons in this group
+            const chartContainer = button.closest('.chart-container');
+            if (chartContainer) {
+                chartContainer.querySelectorAll('.chart-toggle').forEach(btn => {
+                    btn.classList.remove('btn-african-primary');
+                    btn.classList.add('btn-african-outline');
+                });
+            }
+            
+            // Add active class to clicked button
+            button.classList.remove('btn-african-outline');
+            button.classList.add('btn-african-primary');
+            
+            // Switch chart type
+            if (chartId === 'revenue-chart') {
+                switchRevenueChartType(chartType.toLowerCase());
+            }
+            
+            console.log('Switched', chartId, 'to', chartType, 'type');
+        }
     });
 
-    // Store charts for later access
-    window.dashboardCharts = {
-        revenue: revenueChart,
-        category: categoryChart
-    };
-});
+         // Function to show recipe chapter
+     window.showRecipeChapter = function() {
+         // Remove active class from all chapters
+         document.querySelectorAll('.story-chapter').forEach(c => c.classList.remove('active'));
+         document.querySelectorAll('.story-chapter-content').forEach(c => c.classList.remove('active'));
+         
+         // Add active class to recipe chapter
+         document.querySelector('[href="#recipe-mastery"]').classList.add('active');
+         document.getElementById('recipe-mastery').classList.add('active');
+     };
+
+     // Function to scroll to specific chapter
+     window.scrollToChapter = function(chapterId) {
+         const chapter = document.getElementById(chapterId);
+         if (chapter) {
+             // Remove active class from all chapters
+             document.querySelectorAll('.story-chapter').forEach(c => c.classList.remove('active'));
+             document.querySelectorAll('.story-chapter-content').forEach(c => c.classList.remove('active'));
+             
+             // Add active class to target chapter
+             document.querySelector(`[href="#${chapterId}"]`).classList.add('active');
+             chapter.classList.add('active');
+             
+             // Smooth scroll to chapter
+             chapter.scrollIntoView({ behavior: 'smooth', block: 'start' });
+         }
+     };
+
+     // Date range picker functionality (now handled server-side)
+     const dateRangePicker = document.getElementById('dateRangePicker');
+     if (dateRangePicker) {
+         console.log('Date range picker found and initialized');
+         
+         dateRangePicker.addEventListener('change', function() {
+             const selectedDays = this.value;
+             console.log('Date range picker changed to:', selectedDays, 'days');
+             console.log('Current URL before date range picker update:', window.location.href);
+             
+             // Find the currently active chapter
+             const activeChapter = document.querySelector('.story-chapter-content.active');
+             const activeChapterLink = document.querySelector('.story-chapter.active');
+             const chapterData = activeChapterLink ? activeChapterLink.getAttribute('data-chapter') : 'morning';
+             console.log('Active chapter link found:', activeChapterLink);
+             console.log('Chapter data from active link:', chapterData);
+             
+             // Update status
+             const statusElement = document.getElementById('dateRangeStatus');
+             if (statusElement) {
+                 statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+             }
+             
+             // Redirect to the same page with new days parameter and chapter parameter
+             const currentUrl = new URL(window.location);
+             currentUrl.searchParams.set('days', selectedDays);
+             currentUrl.searchParams.set('chapter', chapterData);
+             console.log('Date range picker redirecting to URL:', currentUrl.toString());
+             console.log('Chapter parameter being set by date range picker:', currentUrl.searchParams.get('chapter'));
+             window.location.href = currentUrl.toString();
+         });
+     } else {
+         console.warn('Date range picker not found');
+     }
+
+
+
+     // Handle hash navigation after page load (for date range changes)
+     // Only if no chapter parameter is set in URL
+     window.addEventListener('load', function() {
+         const urlParams = new URLSearchParams(window.location.search);
+         const selectedChapter = urlParams.get('chapter');
+         
+         // Only handle hash navigation if no chapter parameter is set
+         if (!selectedChapter) {
+             const hash = window.location.hash;
+             if (hash) {
+                 const targetChapter = document.querySelector(hash);
+                 if (targetChapter) {
+                     // Remove active class from all chapters
+                     document.querySelectorAll('.story-chapter').forEach(c => c.classList.remove('active'));
+                     document.querySelectorAll('.story-chapter-content').forEach(c => c.classList.remove('active'));
+                     
+                     // Add active class to target chapter
+                     const chapterLink = document.querySelector(`[href="${hash}"]`);
+                     if (chapterLink) {
+                         chapterLink.classList.add('active');
+                     }
+                     targetChapter.classList.add('active');
+                     
+                     // Smooth scroll to the chapter
+                     setTimeout(() => {
+                         targetChapter.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                     }, 100);
+                 }
+             }
+         }
+     });
+
+     // Note: Date range display is now handled server-side in the template
+
+
+
+     // Note: Data updates are now handled server-side, no need for client-side update functions
+ });
+
+    // Add CSS styles for cost analytics sections
+    const costAnalyticsStyles = `
+        <style>
+            /* Cost Analytics Specific Styles */
+            .metric-grade {
+                font-size: 0.9rem;
+                font-weight: 600;
+                margin-top: 0.5rem;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                background: rgba(0,0,0,0.1);
+                display: inline-block;
+            }
+
+            .alert-section {
+                background: #fff;
+                border-radius: 0.5rem;
+                padding: 1.5rem;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                margin-bottom: 1.5rem;
+            }
+
+            .alert-section-title {
+                color: var(--text-primary, #333);
+                font-size: 1.1rem;
+                font-weight: 600;
+                margin-bottom: 1rem;
+                border-bottom: 2px solid var(--color-warning, #ffc107);
+                padding-bottom: 0.5rem;
+            }
+
+            .opportunities-section {
+                background: #fff;
+                border-radius: 0.5rem;
+                padding: 1.5rem;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                margin-bottom: 1.5rem;
+            }
+
+            .opportunities-title {
+                color: var(--text-primary, #333);
+                font-size: 1.1rem;
+                font-weight: 600;
+                margin-bottom: 1rem;
+                border-bottom: 2px solid var(--color-warning, #ffc107);
+                padding-bottom: 0.5rem;
+            }
+
+            .opportunities-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 1rem;
+                margin-top: 1rem;
+            }
+
+            .opportunity-card {
+                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                border: 1px solid #dee2e6;
+                border-radius: 0.5rem;
+                padding: 1rem;
+                font-size: 0.9rem;
+                color: var(--text-secondary, #666);
+                transition: all 0.3s ease;
+            }
+
+            .opportunity-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                border-color: var(--color-warning, #ffc107);
+            }
+
+            .insights-summary {
+                background: #fff;
+                border-radius: 0.5rem;
+                padding: 1.5rem;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                margin-bottom: 1.5rem;
+            }
+
+            .insights-title {
+                color: var(--text-primary, #333);
+                font-size: 1.1rem;
+                font-weight: 600;
+                margin-bottom: 1rem;
+                border-bottom: 2px solid var(--color-info, #17a2b8);
+                padding-bottom: 0.5rem;
+            }
+
+            .insights-content {
+                margin-top: 1rem;
+            }
+
+            .benchmark-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.75rem;
+                background: #f8f9fa;
+                border-radius: 0.25rem;
+                margin-bottom: 0.5rem;
+            }
+
+            .benchmark-item strong {
+                color: var(--text-primary, #333);
+                font-size: 0.9rem;
+            }
+
+            .benchmark-item .badge {
+                font-size: 0.8rem;
+                padding: 0.25rem 0.5rem;
+            }
+
+            /* Chart container styles for cost analytics */
+            .chart-card {
+                background: #fff;
+                border-radius: 0.5rem;
+                padding: 1.5rem;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                height: 100%;
+            }
+
+            .chart-header {
+                margin-bottom: 1rem;
+                border-bottom: 1px solid #dee2e6;
+                padding-bottom: 0.5rem;
+            }
+
+            .chart-header h5 {
+                color: var(--text-primary, #333);
+                font-weight: 600;
+                margin: 0;
+            }
+
+            .chart-container {
+                position: relative;
+                height: 300px;
+            }
+
+            /* Responsive adjustments */
+            @media (max-width: 768px) {
+                .opportunities-grid {
+                    grid-template-columns: 1fr;
+                }
+                
+                .benchmark-item {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 0.5rem;
+                }
+                
+                .chart-container {
+                    height: 250px;
+                }
+            }
+        </style>
+    `;
+
+    // Inject the styles into the document head
+    document.head.insertAdjacentHTML('beforeend', costAnalyticsStyles);
 </script>
 {% endblock %}

@@ -139,6 +139,16 @@ class UnitConversionService:
             cache.set(cache_key, factor, self.cache_timeout)
             return factor
 
+        # Minimal metric fallbacks when no DB rules exist
+        fallback = self._get_minimal_metric_fallback(from_unit.name, to_unit.name)
+        if fallback is not None:
+            factor = fallback
+            cache.set(cache_key, factor, self.cache_timeout)
+            logger.info(
+                f"Using minimal metric fallback for {from_unit.name} -> {to_unit.name}: {factor}"
+            )
+            return factor
+
         # No conversion found
         cache.set(cache_key, None, self.cache_timeout)
         return None
@@ -306,12 +316,15 @@ class UnitConversionService:
             "oranges": "pc",  # Oranges counted in pieces
             "gingembre": "g",  # Ginger in grams
             "pommes de terre": "g",  # Potatoes in grams
-            "patates": "g",  # Sweet potatoes in grams
             "fromage gruyère": "pc",  # Gruyère cheese in pieces
             "tatie sucre sachet": "pc",  # Sugar sachet in pieces
             "yaourt dolait": "l",  # Yogurt in liters
             "lait nido": "pc",  # Nido milk in pieces
             "crème fraîche cuisine": "g",  # Cream in grams
+            "épice saveur mixe": "g",  # Spice mix flavor - contains 10g
+            "épice saveur poisson": "g",  # Fish flavor spice - contains 10g
+            "épice saveur bœuf": "g",  # Beef flavor spice - contains 10g
+            "épice saveur poulet": "g",  # Chicken flavor spice - contains 10g
         }
 
         # Step 1: Create basic unit conversions
@@ -319,7 +332,6 @@ class UnitConversionService:
             # Weight conversions
             ("kg", "g", Decimal("1000")),
             ("g", "kg", Decimal("0.001")),
-            ("botte", "g", Decimal("30")),  # French: bunch = ~30g for herbs
             # Volume conversions
             ("l", "ml", Decimal("1000")),
             ("ml", "l", Decimal("0.001")),
@@ -328,6 +340,9 @@ class UnitConversionService:
             ("pc", "unit", Decimal("1")),
             ("pièce", "pc", Decimal("1")),
             ("pièces", "pc", Decimal("1")),
+            # Spice package conversions (1 package = 10g)
+            ("unit", "g", Decimal("10")),  # 1 unit package = 10g for spice products
+            ("g", "unit", Decimal("0.1")),  # 1g = 0.1 unit package for spice products
         ]
 
         conversions_created = 0
@@ -371,194 +386,11 @@ class UnitConversionService:
                     f"Error creating conversion {from_unit_name}→{to_unit_name}: {str(e)}"
                 )
 
-        # Step 2: Create product-specific conversions
-        product_conversions = {
-            # Vegetables and herbs - unit to grams
-            "oignons": 120,  # 1 onion = 120g
-            "oignons frais": 150,  # 1 bunch = 150g (updated based on market analysis)
-            "oignons frais (botte)": 50,  # 1 bunch = 150g (updated based on market analysis)
-            "tomates": 1000,  # 1 tomato = 1000g (updated based on market analysis)
-            "carottes": 150,  # 1 carrot = 80g
-            "poivrons": 150,  # 1 pepper = 150g
-            "aubergines": 250,  # 1 eggplant = 250g
-            "courgettes": 1000,  # 1 zucchini = 1000g
-            "concombres": 300,  # 1 cucumber = 300g
-            "plantains": 1000,  # 1 plantain = 1000g (updated based on market analysis)
-            "pommes de terre": 1000,  # 1 potato = 1000g (added to fix conversion issue)
-            # Aromatics
-            "ails": 50,  # 1 garlic bulb = 50g
-            "gingembre": 100,  # 1 piece ginger = 100g
-            # Herbs
-            "basilic": 25,  # 1 bunch = 25g
-            "persil": 150,  # 1 bunch = 150g (updated based on market analysis)
-            "menthe": 25,  # 1 bunch = 25g
-            "coriandre": 25,  # 1 bunch = 25g
-            "coriandres": 25,  # 1 bunch = 25g (alternative spelling)
-            # Spices (packages)
-            "piment doux": 150,  # 1 package = 150g (updated based on market analysis)
-            "poivre blanc": 150,
-            "poivre noir": 150,
-            "paprika": 150,  # 1 package = 150g (updated based on market analysis)
-            "curcuma": 150,  # 1 package = 150g (updated based on market analysis)
-            "4 cotés": 150,  # 1 package = 150g (updated based on market analysis)
-            "rondelle": 150,  # 1 package = 150g (updated based on market analysis)
-            "pèbè": 150,  # 1 package = 150g (updated based on market analysis)
-            "clou de girofle": 150,  # 1 package = 150g (updated based on market analysis)
-            # Salt and seasonings
-            "sel fin": 300,  # 1 package = 300g (updated based on market analysis)
-            # Meat products
-            "ailes de poulet cru": 150,  # 1 chicken wing = 150g
-            "ailes de poulet": 150,  # 1 chicken wing = 150g
-            "poulet entier": 1632,  # 1 whole chicken = 1.632kg
-            "rumsteak": 200,  # 1 steak = 200g
-            "blanc de poulet": 200,  # 1 breast = 200g
-            "cuisse de poulet": 250,  # 1 thigh = 250g
-            "saucisses de bœuf": 1000,  # 1 sausage = 1000g (updated based on market analysis)
-            # Sauces and condiments
-            "sauce mayo": 500,  # 1 container = 500g
-            "mayonnaise": 500,  # 1 container = 500g
-            "ketchup": 500,  # 1 bottle = 500g
-            "moutarde": 200,  # 1 jar = 200g
-            # Rice and grains
-            "riz": 1000,  # 1 bag = 1kg
-            "farine": 1000,  # 1 bag = 1kg
-            "fine chapelure": 500,  # 1 bag = 500g (added based on market analysis)
-            "fine chapelure pai": 500,  # 1 bag = 500g (added based on market analysis)
-            # Cheese and dairy
-            "mozzarella": 250,  # 1 package = 250g (added based on market analysis)
-            # Seasoning cubes and powders
-            "arômes maggi": 300,  # 1 cube = 300g (added based on market analysis)
-            "arômes maggi 300g": 300,  # 1 cube = 300g (added based on market analysis)
-            # Seeds
-            "graine sesame": 2064,  # 1 unit = 2064g (updated based on market price analysis)
-            "graine sésame": 2064,  # 1 unit = 2064g (updated based on market price analysis)
-            # Vegetables (if purchased by unit)
-            "céleris": 300,  # 1 bunch = 300g (added based on market analysis)
-            "céleri": 300,  # 1 bunch = 300g (added based on market analysis)
-            # Dairy products (1000g conversion factor)
-            "yaourt dolait": 1000,  # 1 unit/kg = 1000g (dairy product fix)
-            "crème fraîche cuisine": 1000,  # 1 unit/kg = 1000g (dairy product fix)
-            "courgettes": 1000,  # 1 unit = 1000g (dairy product fix)
-        }
+        # Step 2: Create product-specific conversions (DISABLED per minimal policy)
+        product_conversions = {}
 
-        # Liquid product conversions (unit to ml)
-        liquid_conversions = {
-            "huile de palme": 1000,  # 1 bottle = 1000ml
-            "huile de tournesol": 1000,  # 1 bottle = 1000ml
-            "huile d'olive": 1000,  # 1 bottle = 1000ml
-            "huile": 1000,  # Default oil bottle
-        }
-
-        # Create unit measures
-        unit_measure, _ = UnitOfMeasure.objects.get_or_create(
-            name="unit", defaults={"description": "Unit: unit"}
-        )
-        g_measure, _ = UnitOfMeasure.objects.get_or_create(
-            name="g", defaults={"description": "Unit: g"}
-        )
-        ml_measure, _ = UnitOfMeasure.objects.get_or_create(
-            name="ml", defaults={"description": "Unit: ml"}
-        )
-
-        # Create product-specific conversions for solid products (unit → g)
-        for product_name, grams in product_conversions.items():
-            try:
-                # Try to find the product with exact name match (case-insensitive)
-                product = Product.objects.filter(name__iexact=product_name).first()
-                if product:
-                    # Check if this product gets consolidated to another product
-                    from data_engineering.utils.product_consolidation import (
-                        ProductConsolidationService,
-                    )
-
-                    consolidation_service = ProductConsolidationService()
-                    consolidated_product = (
-                        consolidation_service.find_consolidated_product(product_name)
-                    )
-
-                    # Skip if this product gets consolidated to a different product
-                    if consolidated_product and consolidated_product.id != product.id:
-                        logger.info(
-                            f"Skipping conversion for '{product_name}' - gets consolidated to '{consolidated_product.name}'"
-                        )
-                        continue
-
-                    existing = UnitConversion.objects.filter(
-                        from_unit=unit_measure, to_unit=g_measure, product=product
-                    ).first()
-
-                    if not existing:
-                        UnitConversion.objects.create(
-                            from_unit=unit_measure,
-                            to_unit=g_measure,
-                            conversion_factor=Decimal(str(grams)),
-                            product=product,
-                            is_active=True,
-                            priority=10,  # Higher priority than general conversions
-                            notes=f"Product-specific conversion: 1 {product_name} = {grams}g",
-                        )
-                        conversions_created += 1
-                        logger.info(
-                            f"Created product conversion: {product_name} unit → g × {grams}"
-                        )
-                else:
-                    # Debug: Log when product is not found
-                    logger.warning(
-                        f"Product not found for conversion '{product_name}'. "
-                        f"Available products with similar names: "
-                        f"{list(Product.objects.filter(name__icontains=product_name).values_list('name', flat=True))}"
-                    )
-
-            except Exception as e:
-                logger.error(
-                    f"Error creating product conversion for {product_name}: {str(e)}"
-                )
-
-        # Create product-specific conversions for liquid products (unit → ml)
-        for product_name, ml in liquid_conversions.items():
-            try:
-                product = Product.objects.filter(name__iexact=product_name).first()
-                if product:
-                    # Check if this product gets consolidated to another product
-                    from data_engineering.utils.product_consolidation import (
-                        ProductConsolidationService,
-                    )
-
-                    consolidation_service = ProductConsolidationService()
-                    consolidated_product = (
-                        consolidation_service.find_consolidated_product(product_name)
-                    )
-
-                    # Skip if this product gets consolidated to a different product
-                    if consolidated_product and consolidated_product.id != product.id:
-                        logger.info(
-                            f"Skipping conversion for '{product_name}' - gets consolidated to '{consolidated_product.name}'"
-                        )
-                        continue
-
-                    existing = UnitConversion.objects.filter(
-                        from_unit=unit_measure, to_unit=ml_measure, product=product
-                    ).first()
-
-                    if not existing:
-                        UnitConversion.objects.create(
-                            from_unit=unit_measure,
-                            to_unit=ml_measure,
-                            conversion_factor=Decimal(str(ml)),
-                            product=product,
-                            is_active=True,
-                            priority=10,
-                            notes=f"Product-specific conversion: 1 {product_name} = {ml}ml",
-                        )
-                        conversions_created += 1
-                        logger.info(
-                            f"Created product conversion: {product_name} unit → ml × {ml}"
-                        )
-
-            except Exception as e:
-                logger.error(
-                    f"Error creating liquid conversion for {product_name}: {str(e)}"
-                )
+        # Liquid product conversions (unit to ml) (DISABLED per minimal policy)
+        liquid_conversions = {}
 
         # Step 3: Create kitchen standards by category
         standards_created = 0
@@ -637,6 +469,22 @@ class UnitConversionService:
             "conversions_created": conversions_created,
             "standards_created": standards_created,
         }
+
+    def _get_minimal_metric_fallback(
+        self, from_name: str, to_name: str
+    ) -> Optional[Decimal]:
+        """Provide minimal metric fallbacks for common kitchen units when DB has no rule."""
+        pairs = {
+            ("kg", "g"): Decimal("1000"),
+            ("g", "kg"): Decimal("0.001"),
+            ("l", "ml"): Decimal("1000"),
+            ("ml", "l"): Decimal("0.001"),
+            ("cl", "ml"): Decimal("10"),
+            ("ml", "cl"): Decimal("0.1"),
+            ("unit", "pc"): Decimal("1"),
+            ("pc", "unit"): Decimal("1"),
+        }
+        return pairs.get((from_name.lower(), to_name.lower()))
 
 
 unit_conversion_service = UnitConversionService()

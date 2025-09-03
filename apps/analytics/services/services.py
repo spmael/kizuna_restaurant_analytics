@@ -136,11 +136,11 @@ class DailyAnalyticsService:
             total_orders=Count(
                 "order_number", distinct=True
             ),  # Fixed: count unique order numbers
-            total_customers=Count(
-                "order_number", distinct=True
-            ),  # Fixed: count unique orders as customers (since customer field is null)
             total_items_sold=Sum("quantity_sold"),
         )
+
+        # Calculate customer metrics using the recommended approach
+        customer_data = self._count_daily_customers(daily_sales)
 
         # Calculate average order value
         total_sales = sales_agg["total_sales"] or Decimal("0")
@@ -162,9 +162,62 @@ class DailyAnalyticsService:
         return {
             "total_sales": total_sales_rounded,
             "total_orders": total_orders,
-            "total_customers": sales_agg["total_customers"] or 0,
+            "total_customers": customer_data["total_customers"],
+            "registered_customers": customer_data["registered_customers"],
+            "walk_in_customers": customer_data["walk_in_customers"],
             "average_order_value": average_order_value_rounded,
             "total_items_sold": sales_agg["total_items_sold"] or 0,
+        }
+
+    def _count_daily_customers(self, orders_for_date) -> Dict:
+        """
+        Count daily customers using the recommended approach:
+        - Unique registered customers + individual walk-ins
+        - Each walk-in represents a real person who made a purchase
+        - Gives accurate count of people served
+
+        SPECIAL LOGIC FOR WALK-IN CUSTOMERS:
+        - If walk-in count > total orders, assume walk-ins are unique orders
+        - This handles cases where team doesn't properly record individual walk-in customers
+        """
+        registered_customers = set()
+        walk_in_orders = []
+        total_orders = len(orders_for_date)
+
+        for order in orders_for_date:
+            # Check if this is a walk-in customer
+            if (
+                order.customer is None
+                or order.customer.strip() == ""
+                or order.customer.lower()
+                in ["walk-in customer", "walk-in", "walkin", "walk in customer"]
+            ):
+                walk_in_orders.append(order)
+            else:
+                # This is a registered customer - add to set to avoid duplicates
+                registered_customers.add(order.customer.strip())
+
+        # Apply special logic for walk-in customers
+        # If walk-in orders count is very high compared to total orders,
+        # it likely means team is recording each order as a separate customer
+        # instead of tracking unique individuals
+        if (
+            len(walk_in_orders) > total_orders * 0.8
+        ):  # If walk-ins > 80% of total orders
+            # Assume team is recording orders, not unique customers
+            # Count unique walk-in orders as unique customers
+            unique_walk_in_orders = set(order.order_number for order in walk_in_orders)
+            walk_in_count = len(unique_walk_in_orders)
+        else:
+            # Use normal logic - each walk-in = separate customer
+            walk_in_count = len(walk_in_orders)
+
+        total_customers = len(registered_customers) + walk_in_count
+
+        return {
+            "total_customers": total_customers,
+            "registered_customers": len(registered_customers),
+            "walk_in_customers": walk_in_count,
         }
 
     def _calculate_enhanced_cost_metrics(self, target_date: date) -> Dict:
@@ -572,7 +625,7 @@ class DailyAnalyticsService:
         # Calculate food cost percentage
         if summary.total_sales > 0:
             summary.food_cost_percentage = (
-                (summary.total_food_cost / summary.total_sales) * 100
+                (summary.total_food_cost / summary.total_sales) * Decimal("100")
             ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         else:
             summary.food_cost_percentage = Decimal("0")
@@ -585,7 +638,7 @@ class DailyAnalyticsService:
         # Calculate gross profit margin
         if summary.total_sales > 0:
             summary.gross_profit_margin = (
-                (summary.gross_profit / summary.total_sales) * 100
+                (summary.gross_profit / summary.total_sales) * Decimal("100")
             ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         else:
             summary.gross_profit_margin = Decimal("0")
@@ -623,6 +676,8 @@ class DailyAnalyticsService:
             "total_sales": Decimal("0"),
             "total_orders": 0,
             "total_customers": 0,
+            "registered_customers": 0,
+            "walk_in_customers": 0,
             "average_order_value": Decimal("0"),
             "average_ticket_size": Decimal("0"),  # Fixed: was average_check_per_person
             "total_food_cost": Decimal("0"),
@@ -687,6 +742,40 @@ class DailyAnalyticsService:
         )
 
         return list(product_sales)
+
+    def get_sales_by_category(self, target_date: date) -> List[Dict]:
+        """Get sales breakdown by product category for a specific date"""
+
+        category_sales = (
+            Sales.objects.filter(sale_date=target_date)
+            .values("product__sales_category__name")
+            .annotate(
+                total_quantity=Sum("quantity_sold"),
+                total_revenue=Sum("total_sale_price"),
+                average_price=Avg("unit_sale_price"),
+            )
+            .order_by("-total_revenue")
+        )
+
+        return list(category_sales)
+
+    def get_sales_by_category_period(
+        self, start_date: date, end_date: date
+    ) -> List[Dict]:
+        """Get sales breakdown by product category for a date range"""
+
+        category_sales = (
+            Sales.objects.filter(sale_date__range=[start_date, end_date])
+            .values("product__sales_category__name")
+            .annotate(
+                total_quantity=Sum("quantity_sold"),
+                total_revenue=Sum("total_sale_price"),
+                average_price=Avg("unit_sale_price"),
+            )
+            .order_by("-total_revenue")
+        )
+
+        return list(category_sales)
 
     def get_weekly_trends(self, end_date: date = None) -> Dict:
         """Get 7-day trend data"""
@@ -893,14 +982,19 @@ class DailyAnalyticsService:
 
         if total_sales > 0:
             percentages = {
-                "cash": (payment_totals["total_cash"] / total_sales) * 100,
-                "card": (payment_totals["total_card"] / total_sales) * 100,
+                "cash": (payment_totals["total_cash"] / total_sales) * Decimal("100"),
+                "card": (payment_totals["total_card"] / total_sales) * Decimal("100"),
                 "mobile_money": (payment_totals["total_mobile_money"] / total_sales)
-                * 100,
-                "other": (payment_totals["total_other"] / total_sales) * 100,
+                * Decimal("100"),
+                "other": (payment_totals["total_other"] / total_sales) * Decimal("100"),
             }
         else:
-            percentages = {"cash": 0, "card": 0, "mobile_money": 0, "other": 0}
+            percentages = {
+                "cash": Decimal("0"),
+                "card": Decimal("0"),
+                "mobile_money": Decimal("0"),
+                "other": Decimal("0"),
+            }
 
         return {
             "period": f"{start_date} to {end_date}",
@@ -972,7 +1066,7 @@ class DailyAnalyticsService:
                             (
                                 cost_data["total_cost_per_portion"]
                                 / recipe.actual_selling_price_per_portion
-                                * 100
+                                * Decimal("100")
                             )
                             if recipe.actual_selling_price_per_portion
                             else None

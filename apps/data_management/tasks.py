@@ -20,6 +20,8 @@ def process_data_upload(self, upload_id):
         upload = DataUpload.objects.get(id=upload_id)
 
         logger.info(f"Starting data processing for upload {upload_id}")
+        logger.info(f"Upload status before processing: {upload.status}")
+        logger.info(f"Upload file: {upload.file.name}")
 
         # Create and run pipeline
         pipeline = DataProcessingPipeline(upload)

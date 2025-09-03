@@ -76,7 +76,7 @@ class Recipe(AuditModel):
         _("Waste Factor Percentage"),
         max_digits=5,
         decimal_places=2,
-        default=Decimal("0.00"),
+        default=Decimal("5.00"),
         help_text=_("Cooking loss, prep waste, spillage (default 0%)"),
     )
 
@@ -84,7 +84,7 @@ class Recipe(AuditModel):
         _("Labour Cost Percentage"),
         max_digits=15,
         decimal_places=2,
-        default=Decimal("0.00"),
+        default=Decimal("10.00"),
         help_text=_("Optional: labour cost allocation (default 0%)"),
     )
 
@@ -132,7 +132,7 @@ class Recipe(AuditModel):
 
     def calculate_costs(self, save=True):
         """Calculate all recipe costs based on current ingredient prices"""
-        from apps.analytics.recipe_services import RecipeCostingService
+        from apps.analytics.services.recipe_costing import RecipeCostingService
 
         costing_service = RecipeCostingService()
         costs = costing_service.calculate_recipe_costs(self)

@@ -35,8 +35,11 @@ class RestaurantDataLoader(BaseLoader):
 
         results = {}
         self.affected_dates = set()  # Track dates that were affected by this upload
+        self.affected_product_names = getattr(self, "affected_product_names", set())
+        self.affected_recipe_names = getattr(self, "affected_recipe_names", set())
 
         try:
+            self._prepare_caches(data)
             with transaction.atomic():
 
                 # Load in order: products -> legacy rules -> purchases -> sales -> recipes -> consolidated_purchases
@@ -81,12 +84,90 @@ class RestaurantDataLoader(BaseLoader):
                 if "purchases" in data:
                     results["product_cost_history"] = self._load_product_cost_history()
 
+                # Load recipe versions and cost snapshots after recipes are loaded
+                if "recipes" in data:
+                    results["recipe_versions"] = self._load_recipe_versions()
+                    results["recipe_cost_snapshots"] = (
+                        self._load_recipe_cost_snapshots()
+                    )
+
         except Exception as e:
             self.log_error(f"Error loading data: {str(e)}")
             raise
 
         self.log_loader_stats()
         return results
+
+    def _prepare_caches(self, data: Dict[str, pd.DataFrame]):
+        """Prepare lookup caches and prefetch existing rows to avoid per-row queries"""
+        # Product cache
+        self._product_by_name = {
+            p.name.lower(): p
+            for p in Product.objects.all().only(
+                "id",
+                "name",
+                "unit_of_measure",
+                "current_selling_price",
+                "current_cost_per_unit",
+                "current_stock",
+            )
+        }
+        # Categories and units
+        self._purchases_cat_cache = {c.name: c for c in PurchasesCategory.objects.all()}
+        self._sales_cat_cache = {c.name: c for c in SalesCategory.objects.all()}
+        self._uom_cache = {u.name: u for u in UnitOfMeasure.objects.all()}
+
+        # Helper to normalize names list
+        def _names(df: pd.DataFrame, col: str) -> list:
+            try:
+                return [
+                    str(n).strip().lower()
+                    for n in df[col].dropna().astype(str).unique().tolist()
+                ]
+            except Exception:
+                return []
+
+        # Prefetch existing purchases
+        self._existing_purchases = {}
+        if (
+            "purchases" in data
+            and data["purchases"] is not None
+            and not data["purchases"].empty
+        ):
+            dates = data["purchases"]["purchase_date"].unique().tolist()
+            names = _names(data["purchases"], "product")
+            prod_ids = [
+                self._product_by_name[n].id for n in names if n in self._product_by_name
+            ]
+            for obj in Purchase.objects.filter(
+                purchase_date__in=dates, product_id__in=prod_ids
+            ).only(
+                "id", "purchase_date", "product_id", "total_cost", "quantity_purchased"
+            ):
+                self._existing_purchases[(obj.purchase_date, obj.product_id)] = obj
+
+        # Prefetch existing sales
+        self._existing_sales = {}
+        if "sales" in data and data["sales"] is not None and not data["sales"].empty:
+            dates = data["sales"]["sale_date"].unique().tolist()
+            names = _names(data["sales"], "product")
+            prod_ids = [
+                self._product_by_name[n].id for n in names if n in self._product_by_name
+            ]
+            for obj in Sales.objects.filter(
+                sale_date__in=dates, product_id__in=prod_ids
+            ).only(
+                "id",
+                "sale_date",
+                "product_id",
+                "order_number",
+                "total_sale_price",
+                "quantity_sold",
+                "unit_sale_price",
+                "customer",
+            ):
+                key = (obj.sale_date, obj.product_id, str(obj.order_number))
+                self._existing_sales[key] = obj
 
     def _load_products(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Load products into database"""
@@ -98,29 +179,61 @@ class RestaurantDataLoader(BaseLoader):
         for idx, row in df.iterrows():
             try:
                 # Get or create purchases and sales categories
-                purchases_category_name = row.get("purchase_category", "Unknown")
-                sales_category_name = row.get("sales_category", "Unknown")
+                def _normalize_name(value, default_value):
+                    try:
+                        if value is None:
+                            return default_value
+                        name = str(value).strip()
+                        if not name or name.lower() == "nan":
+                            return default_value
+                        return name
+                    except Exception:
+                        return default_value
 
-                purchases_category, _ = PurchasesCategory.objects.get_or_create(
-                    name=purchases_category_name,
-                    defaults={"name_fr": purchases_category_name},
+                purchases_category_name = _normalize_name(
+                    row.get("purchase_category"), "Unknown"
+                )
+                sales_category_name = _normalize_name(
+                    row.get("sales_category"), "Unknown"
                 )
 
-                sales_category, _ = SalesCategory.objects.get_or_create(
-                    name=sales_category_name, defaults={"name_fr": sales_category_name}
+                purchases_category = self._purchases_cat_cache.get(
+                    purchases_category_name
                 )
+                if not purchases_category:
+                    purchases_category = PurchasesCategory.objects.create(
+                        name=purchases_category_name,
+                        name_fr=purchases_category_name,
+                    )
+                    self._purchases_cat_cache[purchases_category_name] = (
+                        purchases_category
+                    )
+
+                sales_category = self._sales_cat_cache.get(sales_category_name)
+                if not sales_category:
+                    sales_category = SalesCategory.objects.create(
+                        name=sales_category_name,
+                        name_fr=sales_category_name,
+                    )
+                    self._sales_cat_cache[sales_category_name] = sales_category
 
                 # Get or create unit of measure
-                unit_of_measure_name = row.get("unit_of_measure", "unit")
-                unit_of_measure, _ = UnitOfMeasure.objects.get_or_create(
-                    name=unit_of_measure_name,
-                    abbreviation=unit_of_measure_name,
-                    defaults={"name_fr": unit_of_measure_name},
+                unit_of_measure_name = _normalize_name(
+                    row.get("unit_of_measure"), "unit"
                 )
+                unit_of_measure = self._uom_cache.get(unit_of_measure_name)
+                if not unit_of_measure:
+                    unit_of_measure = UnitOfMeasure.objects.create(
+                        name=unit_of_measure_name,
+                        abbreviation=unit_of_measure_name,
+                        name_fr=unit_of_measure_name,
+                    )
+                    self._uom_cache[unit_of_measure_name] = unit_of_measure
 
-                # Get or create product - use case-insensitive lookup
+                # Get or create product - use cache (case-insensitive)
                 product_name = row["name"]
-                product = Product.objects.filter(name__iexact=product_name).first()
+                key_name = str(product_name).lower()
+                product = self._product_by_name.get(key_name)
 
                 if product is None:
                     # Create new product
@@ -136,20 +249,33 @@ class RestaurantDataLoader(BaseLoader):
                         updated_by=self.user,
                     )
                     created += 1
+                    self._product_by_name[key_name] = product
                     self.log_info(f"Created new product: {product_name}")
                 else:
-                    # Update existing product
-                    product.current_cost_per_unit = row["current_cost_per_unit"]
+                    # Update existing product only if changed
+                    changed = False
+                    if product.current_cost_per_unit != row["current_cost_per_unit"]:
+                        product.current_cost_per_unit = row["current_cost_per_unit"]
+                        changed = True
                     if (
                         "current_selling_price" in row
                         and row["current_selling_price"] is not None
+                        and product.current_selling_price
+                        != row["current_selling_price"]
                     ):
                         product.current_selling_price = row["current_selling_price"]
-                    if "current_stock" in row and row["current_stock"] is not None:
+                        changed = True
+                    if (
+                        "current_stock" in row
+                        and row["current_stock"] is not None
+                        and product.current_stock != row["current_stock"]
+                    ):
                         product.current_stock = row["current_stock"]
-                    product.save()
-                    updated += 1
-                    self.log_info(f"Updated existing product: {product_name}")
+                        changed = True
+                    if changed:
+                        product.save()
+                        updated += 1
+                        self.log_info(f"Updated existing product: {product_name}")
 
             except Exception as e:
                 errors += 1
@@ -174,8 +300,8 @@ class RestaurantDataLoader(BaseLoader):
         # Create individual records for each purchase
         for idx, row in df.iterrows():
             try:
-                # Find product
-                product = Product.objects.filter(name__iexact=row["product"]).first()
+                # Find product from cache
+                product = self._product_by_name.get(str(row["product"]).lower())
 
                 if not product:
                     error_msg = f"Product {row['product']} not found"
@@ -284,15 +410,12 @@ class RestaurantDataLoader(BaseLoader):
                     self.log_error(error_msg)
                     continue
 
-                # Get order number from commander column
-                order_number = str(row.get("commander", f"order_{idx}"))
+                # Get order number from order_number column (mapped from "Commander" in transformer)
+                order_number = str(row.get("order_number", f"order_{idx}"))
 
                 # Check for existing sale with same order number, date, and product
-                existing_sale = Sales.objects.filter(
-                    sale_date=row["sale_date"],
-                    product=product,
-                    order_number=order_number,
-                ).first()
+                key = (row["sale_date"], product.id, order_number)
+                existing_sale = self._existing_sales.get(key)
 
                 if existing_sale:
                     # Check if this is a true duplicate (same order, same product, same values)
@@ -328,6 +451,9 @@ class RestaurantDataLoader(BaseLoader):
                             existing_sale.quantity_sold = row["quantity_sold"]
                             existing_sale.unit_sale_price = row["unit_sale_price"]
                             existing_sale.total_sale_price = row["total_sale_price"]
+                            existing_sale.customer = row.get(
+                                "customer", ""
+                            )  # Add missing customer field
                             existing_sale.updated_by = self.user
                             existing_sale.save()
                             updated_sales += 1
@@ -342,6 +468,9 @@ class RestaurantDataLoader(BaseLoader):
                         existing_sale.quantity_sold = row["quantity_sold"]
                         existing_sale.unit_sale_price = row["unit_sale_price"]
                         existing_sale.total_sale_price = row["total_sale_price"]
+                        existing_sale.customer = row.get(
+                            "customer", ""
+                        )  # Add missing customer field
                         existing_sale.updated_by = self.user
                         existing_sale.save()
                         updated_sales += 1
@@ -357,6 +486,7 @@ class RestaurantDataLoader(BaseLoader):
                         quantity_sold=row["quantity_sold"],
                         unit_sale_price=row["unit_sale_price"],
                         total_sale_price=row["total_sale_price"],
+                        customer=row.get("customer", ""),  # Add missing customer field
                         created_by=self.user,
                         updated_by=self.user,
                     )
@@ -395,13 +525,26 @@ class RestaurantDataLoader(BaseLoader):
                 logger.info(
                     f"Cleared consolidated purchases for affected dates: {self.affected_dates}"
                 )
+
+                # Only process purchases from affected dates
+                purchases = Purchase.objects.select_related("product").filter(
+                    purchase_date__in=self.affected_dates
+                )
+                logger.info(
+                    f"Processing {purchases.count()} purchases from affected dates"
+                )
             else:
                 # If we don't have specific affected dates, clear all and regenerate
                 # This is a fallback for backward compatibility
                 ConsolidatedPurchases.objects.all().delete()
                 logger.info("Cleared all consolidated purchases (fallback mode)")
 
-            purchases = Purchase.objects.select_related("product").all()
+                # Process all purchases
+                purchases = Purchase.objects.select_related("product").all()
+                logger.info(
+                    f"Processing all {purchases.count()} purchases (fallback mode)"
+                )
+
             if not purchases.exists():
                 logger.warning("No purchases found to consolidate")
                 return {"created": 0, "errors": 0}
@@ -471,7 +614,7 @@ class RestaurantDataLoader(BaseLoader):
                     self.log_error(error_msg)
 
             logger.info(
-                f"Created {created_count} consolidated purchase records (1:1 copy from {len(purchases)} original purchases)"
+                f"Created {created_count} consolidated purchase records (incremental update)"
             )
             return {"created": created_count, "errors": errors}
 
@@ -503,13 +646,22 @@ class RestaurantDataLoader(BaseLoader):
                 logger.info(
                     f"Cleared consolidated sales for affected dates: {self.affected_dates}"
                 )
+
+                # Only process sales from affected dates
+                sales = Sales.objects.select_related("product").filter(
+                    sale_date__in=self.affected_dates
+                )
+                logger.info(f"Processing {sales.count()} sales from affected dates")
             else:
                 # If we don't have specific affected dates, clear all and regenerate
                 # This is a fallback for backward compatibility
                 ConsolidatedSales.objects.all().delete()
                 logger.info("Cleared all consolidated sales (fallback mode)")
 
-            sales = Sales.objects.select_related("product").all()
+                # Process all sales
+                sales = Sales.objects.select_related("product").all()
+                logger.info(f"Processing all {sales.count()} sales (fallback mode)")
+
             if not sales.exists():
                 logger.warning("No sales found to consolidate")
                 return {"created": 0, "errors": 0}
@@ -578,7 +730,7 @@ class RestaurantDataLoader(BaseLoader):
                     self.log_error(error_msg)
 
             logger.info(
-                f"Created {created_count} consolidated sales records (1:1 copy from {len(sales)} original sales)"
+                f"Created {created_count} consolidated sales records (incremental update)"
             )
             return {"created": created_count, "errors": errors}
 
@@ -595,8 +747,17 @@ class RestaurantDataLoader(BaseLoader):
         updated = 0
         errors = 0
 
-        # Get all products (not just those without ProductType records)
-        all_products = Product.objects.all()
+        # Scope by affected names if provided
+        affected_names = getattr(self, "affected_product_names", None)
+        if affected_names:
+            scoped_products = []
+            for name in affected_names:
+                p = self._product_by_name.get(name)
+                if p:
+                    scoped_products.append(p)
+            all_products = scoped_products
+        else:
+            all_products = Product.objects.all()
         type_service = ProductTypeAssignmentService()
 
         for product in all_products:
@@ -692,29 +853,33 @@ class RestaurantDataLoader(BaseLoader):
             conversion_count = UnitConversion.objects.count()
 
             if consolidation_count > 0 and conversion_count > 0:
-                logger.info(
+                logger.debug(
                     f"Legacy rules already loaded (consolidation: {consolidation_count}, conversions: {conversion_count}). Skipping."
                 )
                 return
 
-            logger.info(
+            logger.debug(
                 "Loading legacy consolidation rules and unit conversions after products..."
             )
 
             # Load consolidation rules if they don't exist
             if consolidation_count == 0:
-                logger.info("Loading legacy consolidation rules...")
+                logger.info("Loading legacy consolidation rules (first-time only)...")
                 product_consolidation_service.load_legacy_consolidation_rules()
                 new_consolidation_count = ProductConsolidation.objects.count()
-                logger.info(f"Loaded {new_consolidation_count} consolidation rules")
-            else:
                 logger.info(
+                    f"Total consolidation rules present: {new_consolidation_count}"
+                )
+            else:
+                logger.debug(
                     f"Consolidation rules already exist ({consolidation_count} rules)"
                 )
 
             # Load unit conversions and standards if they don't exist
             if conversion_count == 0:
-                logger.info("Loading legacy unit conversions and standards...")
+                logger.info(
+                    "Loading legacy unit conversions and standards (first-time only)..."
+                )
                 result = (
                     unit_conversion_service.load_legacy_unit_conversions_and_standards()
                 )
@@ -722,11 +887,11 @@ class RestaurantDataLoader(BaseLoader):
                     f"Loaded {result['conversions_created']} conversions and {result['standards_created']} standards"
                 )
             else:
-                logger.info(
+                logger.debug(
                     f"Unit conversions already exist ({conversion_count} conversions)"
                 )
 
-            logger.info("Legacy rules loading completed successfully")
+            logger.debug("Legacy rules loading completed successfully")
 
         except Exception as e:
             error_msg = f"Error loading legacy rules after products: {str(e)}"
@@ -904,7 +1069,7 @@ class RestaurantDataLoader(BaseLoader):
 
                         if created:
                             created_ingredients += 1
-                            logger.info(
+                            logger.debug(
                                 f"Created ingredient {ingredient.name} for recipe {group_key}"
                             )
                         else:
@@ -916,7 +1081,7 @@ class RestaurantDataLoader(BaseLoader):
                             recipe_ingredient.unit_of_recipe = unit_of_measure
                             recipe_ingredient.save()
                             updated_ingredients += 1
-                            logger.info(
+                            logger.debug(
                                 f"Updated ingredient {ingredient.name} for recipe {group_key}"
                             )
 
@@ -958,7 +1123,34 @@ class RestaurantDataLoader(BaseLoader):
         type_service = ProductTypeAssignmentService()
 
         # Get consolidated purchases data (this should already have unit conversions applied)
-        consolidated_purchases = ConsolidatedPurchases.objects.all()
+        # Only process purchases from affected dates if we have them
+        if hasattr(self, "affected_dates") and self.affected_dates:
+            # Clear cost history for affected dates only
+            ProductCostHistory.objects.filter(
+                purchase_date__in=self.affected_dates
+            ).delete()
+            logger.info(
+                f"Cleared cost history for affected dates: {self.affected_dates}"
+            )
+
+            # Only process consolidated purchases from affected dates
+            consolidated_purchases = ConsolidatedPurchases.objects.filter(
+                purchase_date__in=self.affected_dates
+            )
+            logger.info(
+                f"Processing {consolidated_purchases.count()} consolidated purchases from affected dates"
+            )
+        else:
+            # If we don't have specific affected dates, clear all and regenerate
+            # This is a fallback for backward compatibility
+            ProductCostHistory.objects.all().delete()
+            logger.info("Cleared all cost history (fallback mode)")
+
+            # Process all consolidated purchases
+            consolidated_purchases = ConsolidatedPurchases.objects.all()
+            logger.info(
+                f"Processing all {consolidated_purchases.count()} consolidated purchases (fallback mode)"
+            )
 
         for purchase in consolidated_purchases:
             try:
@@ -1059,6 +1251,317 @@ class RestaurantDataLoader(BaseLoader):
             "updated": updated,
             "errors": errors,
         }
+
+    def _load_recipe_versions(self) -> Dict[str, Any]:
+        """Track recipe changes and create version history"""
+        try:
+            from datetime import date
+
+            from django.db import IntegrityError, transaction
+
+            from apps.recipes.models import Recipe, RecipeVersion
+
+            logger.info("Starting recipe version tracking...")
+
+            created_versions = 0
+            updated_versions = 0
+            errors = 0
+
+            # Get recipes processed in this upload (scoped if provided)
+            affected_recipes = getattr(self, "affected_recipe_names", None)
+            if affected_recipes:
+                recipes = Recipe.objects.filter(
+                    dish_name__in=list({r for r in affected_recipes})
+                )
+            else:
+                recipes = Recipe.objects.all()
+
+            for recipe in recipes:
+                try:
+                    with transaction.atomic():
+                        # Get current recipe ingredients as a hash for comparison
+                        current_ingredients = self._get_recipe_ingredients_hash(recipe)
+
+                        # Latest version (any date)
+                        latest_version = (
+                            RecipeVersion.objects.filter(recipe=recipe)
+                            .order_by("-effective_date")
+                            .first()
+                        )
+
+                        today = date.today()
+                        # Existing version for today (avoid UNIQUE constraint)
+                        existing_today = RecipeVersion.objects.filter(
+                            recipe=recipe, effective_date=today
+                        ).first()
+
+                        if latest_version:
+                            previous_ingredients = latest_version.change_notes
+
+                            if current_ingredients != previous_ingredients:
+                                if existing_today:
+                                    # Update today's version instead of creating a duplicate
+                                    existing_today.change_notes = current_ingredients
+                                    existing_today.is_active = True
+                                    # Keep version number or bump to next minor
+                                    existing_today.version_number = (
+                                        existing_today.version_number
+                                        or self._get_next_version_number(recipe)
+                                    )
+                                    existing_today.save()
+                                    updated_versions += 1
+                                    logger.info(
+                                        f"Updated today's version for recipe: {recipe.dish_name}"
+                                    )
+                                else:
+                                    # End the previous active version
+                                    latest_version.end_date = today
+                                    latest_version.is_active = False
+                                    latest_version.save()
+
+                                    # Create new active version for today
+                                    new_version_number = self._get_next_version_number(
+                                        recipe
+                                    )
+                                    RecipeVersion.objects.create(
+                                        recipe=recipe,
+                                        version_number=new_version_number,
+                                        effective_date=today,
+                                        change_notes=current_ingredients,
+                                        is_active=True,
+                                    )
+                                    created_versions += 1
+                                    logger.info(
+                                        f"Created new version {new_version_number} for recipe: {recipe.dish_name}"
+                                    )
+                            else:
+                                logger.debug(
+                                    f"No changes detected for recipe: {recipe.dish_name}"
+                                )
+                        else:
+                            if existing_today:
+                                # Ensure today's initial version is active and carries current state
+                                existing_today.change_notes = current_ingredients
+                                existing_today.is_active = True
+                                existing_today.version_number = (
+                                    existing_today.version_number or "1.0"
+                                )
+                                existing_today.save()
+                                updated_versions += 1
+                                logger.info(
+                                    f"Updated initial version for recipe: {recipe.dish_name}"
+                                )
+                            else:
+                                # First version for this recipe
+                                RecipeVersion.objects.create(
+                                    recipe=recipe,
+                                    version_number="1.0",
+                                    effective_date=today,
+                                    change_notes=current_ingredients,
+                                    is_active=True,
+                                )
+                                created_versions += 1
+                                logger.info(
+                                    f"Created initial version 1.0 for recipe: {recipe.dish_name}"
+                                )
+
+                except IntegrityError as e:
+                    errors += 1
+                    error_msg = f"Integrity error during recipe versioning for {recipe.dish_name}: {str(e)}"
+                    self.log_error(error_msg)
+                except Exception as e:
+                    errors += 1
+                    error_msg = f"Error creating recipe version for {recipe.dish_name}: {str(e)}"
+                    self.log_error(error_msg)
+
+            logger.info(
+                f"Recipe version tracking completed: {created_versions} new versions, {updated_versions} updated, {errors} errors"
+            )
+            return {
+                "created": created_versions,
+                "updated": updated_versions,
+                "errors": errors,
+            }
+
+        except Exception as e:
+            error_msg = f"Error in recipe version tracking: {str(e)}"
+            logger.error(error_msg)
+            self.log_error(error_msg)
+            return {"created": 0, "updated": 0, "errors": 1}
+
+    def _load_recipe_cost_snapshots(self) -> Dict[str, Any]:
+        """Create cost snapshots for all recipes after cost updates"""
+        try:
+            from decimal import Decimal
+
+            from django.utils import timezone
+
+            from apps.analytics.services.recipe_costing import RecipeCostingService
+            from apps.recipes.models import Recipe, RecipeCostSnapshot
+
+            logger.info("Starting recipe cost snapshot creation...")
+
+            created_snapshots = 0
+            errors = 0
+
+            # Initialize recipe costing service
+            costing_service = RecipeCostingService()
+
+            # Get all active recipes (scoped if provided)
+            affected_recipes = getattr(self, "affected_recipe_names", None)
+            if affected_recipes:
+                recipes = Recipe.objects.filter(
+                    is_active=True, dish_name__in=list({r for r in affected_recipes})
+                )
+            else:
+                recipes = Recipe.objects.filter(is_active=True)
+
+            from django.db.models.functions import TruncDate
+
+            today_date = timezone.now().date()
+
+            for recipe in recipes:
+                try:
+                    # Calculate current recipe costs
+                    cost_data = costing_service.calculate_recipe_cost(recipe)
+
+                    # Calculate food cost percentage if selling price exists
+                    food_cost_pct = None
+                    if (
+                        recipe.actual_selling_price_per_portion
+                        and recipe.actual_selling_price_per_portion > 0
+                    ):
+                        food_cost_pct = (
+                            cost_data["total_cost_per_portion"]
+                            / recipe.actual_selling_price_per_portion
+                        ) * 100
+
+                    # Upsert cost snapshot per recipe per day (idempotent)
+                    snapshot = (
+                        RecipeCostSnapshot.objects.annotate(
+                            day=TruncDate("snapshot_date")
+                        )
+                        .filter(recipe=recipe, day=today_date)
+                        .first()
+                    )
+
+                    if snapshot:
+                        snapshot.base_food_cost_per_portion = cost_data[
+                            "base_cost_per_portion"
+                        ]
+                        snapshot.waste_cost_per_portion = cost_data.get(
+                            "waste_cost_per_portion", Decimal("0")
+                        )
+                        snapshot.labor_cost_per_portion = cost_data.get(
+                            "labor_cost_per_portion", Decimal("0")
+                        )
+                        snapshot.total_cost_per_portion = cost_data[
+                            "total_cost_per_portion"
+                        ]
+                        snapshot.selling_price = recipe.actual_selling_price_per_portion
+                        snapshot.food_cost_percentage = food_cost_pct
+                        snapshot.calculation_method = "weighted_average"
+                        snapshot.notes = "Snapshot updated during ETL processing"
+                        snapshot.save()
+                    else:
+                        RecipeCostSnapshot.objects.create(
+                            recipe=recipe,
+                            snapshot_date=timezone.now(),
+                            base_food_cost_per_portion=cost_data[
+                                "base_cost_per_portion"
+                            ],
+                            waste_cost_per_portion=cost_data.get(
+                                "waste_cost_per_portion", Decimal("0")
+                            ),
+                            labor_cost_per_portion=cost_data.get(
+                                "labor_cost_per_portion", Decimal("0")
+                            ),
+                            total_cost_per_portion=cost_data["total_cost_per_portion"],
+                            selling_price=recipe.actual_selling_price_per_portion,
+                            food_cost_percentage=food_cost_pct,
+                            calculation_method="weighted_average",
+                            notes="Snapshot created during ETL processing",
+                        )
+                        created_snapshots += 1
+                    logger.info(
+                        f"Upserted cost snapshot for recipe: {recipe.dish_name}"
+                    )
+
+                except Exception as e:
+                    errors += 1
+                    error_msg = (
+                        f"Error creating cost snapshot for {recipe.dish_name}: {str(e)}"
+                    )
+                    self.log_error(error_msg)
+
+            logger.info(
+                f"Recipe cost snapshot creation completed: {created_snapshots} snapshots, {errors} errors"
+            )
+            return {"created": created_snapshots, "errors": errors}
+
+        except Exception as e:
+            error_msg = f"Error in recipe cost snapshot creation: {str(e)}"
+            logger.error(error_msg)
+            self.log_error(error_msg)
+            return {"created": 0, "errors": 1}
+
+    def _get_recipe_ingredients_hash(self, recipe) -> str:
+        """Generate a hash of recipe ingredients for change detection"""
+        try:
+            from apps.recipes.models import RecipeIngredient
+
+            # Get all ingredients for this recipe
+            ingredients = RecipeIngredient.objects.filter(recipe=recipe).order_by(
+                "ingredient__name"
+            )
+
+            # Create a hash string from ingredient data
+            ingredient_data = []
+            for ingredient in ingredients:
+                ingredient_data.append(
+                    f"{ingredient.ingredient.name}:{ingredient.quantity}:{ingredient.unit_of_recipe.name if ingredient.unit_of_recipe else 'None'}"
+                )
+
+            # Sort to ensure consistent hash
+            ingredient_data.sort()
+            return "|".join(ingredient_data)
+
+        except Exception as e:
+            logger.warning(
+                f"Error generating recipe hash for {recipe.dish_name}: {str(e)}"
+            )
+            return ""
+
+    def _get_next_version_number(self, recipe) -> str:
+        """Get the next version number for a recipe"""
+        try:
+            from apps.recipes.models import RecipeVersion
+
+            # Get the latest version number
+            latest_version = (
+                RecipeVersion.objects.filter(recipe=recipe)
+                .order_by("-version_number")
+                .first()
+            )
+
+            if latest_version:
+                # Parse version number (assuming format like "1.0", "1.1", etc.)
+                try:
+                    version_parts = latest_version.version_number.split(".")
+                    major = int(version_parts[0])
+                    minor = int(version_parts[1]) if len(version_parts) > 1 else 0
+                    return f"{major}.{minor + 1}"
+                except (ValueError, IndexError):
+                    # Fallback: increment the last version number
+                    return f"{latest_version.version_number}.1"
+            else:
+                return "1.0"
+
+        except Exception as e:
+            logger.warning(
+                f"Error getting next version number for {recipe.dish_name}: {str(e)}"
+            )
+            return "1.0"
 
     def _get_recipe_unit_for_product(self, product: Product) -> UnitOfMeasure:
         """Get the actual recipe unit for a product by checking RecipeIngredient data"""

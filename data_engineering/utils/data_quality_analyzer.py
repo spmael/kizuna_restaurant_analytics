@@ -12,6 +12,10 @@ class DataQualityAnalyzer:
     def __init__(self):
         self.quality_metrics = {}
 
+    def analyze_sheet(self, df: pd.DataFrame, sheet_type: str) -> Dict[str, Any]:
+        """Wrapper method for analyze_sheet_quality to maintain pipeline compatibility"""
+        return self.analyze_sheet_quality(sheet_type, df)
+
     def analyze_sheet_quality(
         self, sheet_type: str, df: pd.DataFrame, sheet_name: str = None
     ) -> Dict[str, Any]:
@@ -367,6 +371,38 @@ class DataQualityAnalyzer:
                 score -= issue_penalty
 
         return max(0, min(100, round(score, 2)))
+
+    def calculate_overall_quality(
+        self, per_sheet_metrics: Dict[str, Dict[str, Any]]
+    ) -> float:
+        """Aggregate per-sheet metrics into a single overall quality score (0-100).
+
+        Uses record-count-weighted average of each sheet's quality score.
+        """
+        if not per_sheet_metrics:
+            return 0.0
+
+        total_records = 0
+        weighted_sum = 0.0
+        for metrics in per_sheet_metrics.values():
+            # Skip special keys if any
+            if not isinstance(metrics, dict):
+                continue
+            records = metrics.get("record_count", 0) or 0
+            score = metrics.get("quality_score", 0) or 0
+            weighted_sum += score * records
+            total_records += records
+
+        if total_records == 0:
+            # Fallback: simple average across sheets
+            scores = [
+                m.get("quality_score", 0)
+                for m in per_sheet_metrics.values()
+                if isinstance(m, dict)
+            ]
+            return round(sum(scores) / len(scores), 2) if scores else 0.0
+
+        return round(weighted_sum / total_records, 2)
 
     def _empty_quality_metrics(self, sheet_type: str) -> Dict[str, Any]:
         """Return empty quality metrics for empty sheets"""

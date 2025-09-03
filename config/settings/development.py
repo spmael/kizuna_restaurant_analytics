@@ -38,3 +38,15 @@ DATABASES = {
 }
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# Override cache for development - use local memory cache
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
+        "TIMEOUT": 300,
+    }
+}
+
+# Use database sessions in development
+SESSION_ENGINE = "django.contrib.sessions.backends.db"

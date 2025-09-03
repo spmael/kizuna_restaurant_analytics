@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
+from django.http import JsonResponse
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import (
@@ -9,6 +10,7 @@ from django.views.generic import (
     DetailView,
     ListView,
     UpdateView,
+    View,
 )
 
 from .forms import RecipeForm
@@ -57,6 +59,22 @@ class RecipeDetailView(LoginRequiredMixin, DetailView):
         context["ingredients"] = recipe.ingredients.select_related(
             "ingredient", "unit_of_recipe"
         )
+
+        # Calculate recipe costs
+        from apps.analytics.services.recipe_costing import RecipeCostingService
+
+        costing_service = RecipeCostingService()
+
+        try:
+            cost_data = costing_service.calculate_recipe_cost_with_missing_ingredients(
+                recipe
+            )
+            context["cost_data"] = cost_data
+            context["has_cost_data"] = True
+        except Exception as e:
+            context["has_cost_data"] = False
+            context["cost_error"] = str(e)
+
         return context
 
 
@@ -104,3 +122,31 @@ class RecipeDeleteView(LoginRequiredMixin, DeleteView):
     def delete(self, request, *args, **kwargs):
         messages.success(self.request, _("Recipe deleted successfully."))
         return super().delete(request, *args, **kwargs)
+
+
+class RecipeRecalculateCostsView(LoginRequiredMixin, View):
+    """View for recalculating recipe costs."""
+
+    def post(self, request, pk):
+        try:
+            recipe = Recipe.objects.get(pk=pk)
+            from apps.analytics.services.recipe_costing import RecipeCostingService
+
+            costing_service = RecipeCostingService()
+            costing_service.update_recipe_costs(recipe, save_snapshot=True)
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": _("Recipe costs recalculated successfully."),
+                    "redirect_url": reverse_lazy(
+                        "recipes:recipe_detail", kwargs={"pk": pk}
+                    ),
+                }
+            )
+        except Recipe.DoesNotExist:
+            return JsonResponse(
+                {"success": False, "message": _("Recipe not found.")}, status=404
+            )
+        except Exception as e:
+            return JsonResponse({"success": False, "message": str(e)}, status=500)

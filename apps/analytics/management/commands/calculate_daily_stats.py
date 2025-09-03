@@ -33,19 +33,23 @@ class Command(BaseCommand):
 
         # Determine date range
         if options["all_data"]:
-            # Calculate for all sales data
+            # Calculate for all sales data up to the latest available sale
             from apps.restaurant_data.models import Sales
 
             first_sale = Sales.objects.order_by("sale_date").first()
+            last_sale = Sales.objects.order_by("sale_date").last()
+
             if not first_sale:
                 raise CommandError(_("No sales data found"))
 
             start_date = first_sale.sale_date
-            end_date = date.today() - timedelta(days=1)
+            end_date = (
+                last_sale.sale_date if last_sale else date.today() - timedelta(days=1)
+            )
 
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"Calculating for all data: {start_date} to {end_date}"
+                    f"Calculating for all data: {start_date} to {end_date} (latest sale date)"
                 )
             )
 

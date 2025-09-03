@@ -175,6 +175,18 @@ class DailySummary(TimeStampedModel):
         help_text=_("Number of customers served (covers)"),
     )
 
+    registered_customers = models.PositiveIntegerField(
+        _("Registered Customers"),
+        default=0,
+        help_text=_("Number of unique registered customers served"),
+    )
+
+    walk_in_customers = models.PositiveIntegerField(
+        _("Walk-in Customers"),
+        default=0,
+        help_text=_("Number of walk-in customers (each counted individually)"),
+    )
+
     average_order_value = models.DecimalField(
         _("Average Order Value"),
         max_digits=15,
@@ -243,35 +255,25 @@ class DailySummary(TimeStampedModel):
         _("COGS Confidence"),
         max_length=10,
         choices=[
-            ('HIGH', 'High (90%+ actual data)'),
-            ('MEDIUM', 'Medium (70-89% actual data)'),
-            ('LOW', 'Low (50-69% actual data)'),
-            ('VERY_LOW', 'Very Low (<50% actual data)')
+            ("HIGH", "High (90%+ actual data)"),
+            ("MEDIUM", "Medium (70-89% actual data)"),
+            ("LOW", "Low (50-69% actual data)"),
+            ("VERY_LOW", "Very Low (<50% actual data)"),
         ],
-        default='HIGH'
+        default="HIGH",
     )
 
     data_completeness_percentage = models.DecimalField(
-        _("Data Completeness %"),
-        max_digits=5,
-        decimal_places=2,
-        default=Decimal("100")
+        _("Data Completeness %"), max_digits=5, decimal_places=2, default=Decimal("100")
     )
 
-    missing_ingredients_count = models.IntegerField(
-        _("Missing Ingredients"),
-        default=0
-    )
+    missing_ingredients_count = models.IntegerField(_("Missing Ingredients"), default=0)
 
     estimated_ingredients_count = models.IntegerField(
-        _("Estimated Ingredients"),
-        default=0
+        _("Estimated Ingredients"), default=0
     )
 
-    cogs_calculation_notes = models.TextField(
-        _("COGS Notes"),
-        blank=True
-    )
+    cogs_calculation_notes = models.TextField(_("COGS Notes"), blank=True)
 
     resale_cost = models.DecimalField(
         _("Resale Cost"),
@@ -470,33 +472,6 @@ class DailySummary(TimeStampedModel):
             "sales_per_staff",
         ]
 
-        print(f"\n=== DEBUGGING SAVE FOR {self.date} ===")
-
-        for field_name in decimal_fields:
-            value = getattr(self, field_name, None)
-            if value is not None:
-                print(f"{field_name}: {value} (type: {type(value)})")
-
-                # Check for invalid values
-                if isinstance(value, decimal.Decimal):
-                    if value.is_nan():
-                        print(f"❌ {field_name} is NaN!")
-                    elif value.is_infinite():
-                        print(f"❌ {field_name} is infinite!")
-                    elif abs(value) > decimal.Decimal(
-                        "999999999999999"
-                    ):  # max_digits=15
-                        print(f"❌ {field_name} exceeds max_digits=15: {value}")
-
-                    # Try to quantize and catch specific errors
-                    try:
-                        # Assuming 2 decimal places for most fields
-                        quantized = value.quantize(decimal.Decimal("0.01"))
-                        print(f"✅ {field_name} quantizes OK: {quantized}")
-                    except decimal.InvalidOperation as e:
-                        print(f"❌ {field_name} quantize failed: {e}")
-                        print(f"   Original value: {repr(value)}")
-
         # Round all decimal fields before saving
         for field_name in decimal_fields:
             value = getattr(self, field_name, None)
@@ -530,7 +505,7 @@ class DailySummary(TimeStampedModel):
     def _calculate_derived_metrics(self):
         """Calculate metrics that derive from other fields"""
 
-        from decimal import ROUND_HALF_UP
+        from decimal import ROUND_HALF_UP, Decimal
 
         # Note: total_orders is calculated from sales data, not from dine_in + take_out + delivery
         # self.total_orders = (
@@ -538,21 +513,24 @@ class DailySummary(TimeStampedModel):
         # )
         # Average order value
         if self.total_orders > 0:
-            self.average_order_value = (self.total_sales / self.total_orders).quantize(
+            result = self.total_sales / Decimal(str(self.total_orders))
+            self.average_order_value = result.quantize(
                 Decimal("0.01"), rounding=ROUND_HALF_UP
             )
 
         # Average ticket size
         if self.total_customers > 0:
-            self.average_ticket_size = (
-                self.total_sales / self.total_customers
-            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            result = self.total_sales / Decimal(str(self.total_customers))
+            self.average_ticket_size = result.quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
 
         # Food Cost Percentage
         if self.total_sales > 0:
-            self.food_cost_percentage = (
-                (self.total_food_cost / self.total_sales) * 100
-            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            result = (self.total_food_cost / self.total_sales) * Decimal("100")
+            self.food_cost_percentage = result.quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
 
         # Gross Profit
         self.gross_profit = (
@@ -561,19 +539,24 @@ class DailySummary(TimeStampedModel):
 
         # Gross Profit Margin
         if self.total_sales > 0:
-            self.gross_profit_margin = (
-                (self.gross_profit / self.total_sales) * 100
-            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            result = (self.gross_profit / self.total_sales) * Decimal("100")
+            self.gross_profit_margin = result.quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
 
         # Average Items per Order
         if self.total_orders > 0:
-            self.average_items_per_order = (
-                self.total_items_sold / self.total_orders
-            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            result = Decimal(str(self.total_items_sold)) / Decimal(
+                str(self.total_orders)
+            )
+            self.average_items_per_order = result.quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
 
         # Sales per Staff
         if self.staff_count > 0:
-            self.sales_per_staff = (self.total_sales / self.staff_count).quantize(
+            result = self.total_sales / Decimal(str(self.staff_count))
+            self.sales_per_staff = result.quantize(
                 Decimal("0.01"), rounding=ROUND_HALF_UP
             )
 

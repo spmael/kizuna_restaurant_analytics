@@ -15,6 +15,9 @@
                 <a href="{% url 'data_management:upload_list' %}" class="btn btn-outline-primary">
                     <i class="fas fa-list"></i> {% trans "View Uploads" %}
                 </a>
+                <a href="{% url 'data_management:test_progress' %}" class="btn btn-outline-info ms-2">
+                    <i class="fas fa-test"></i> {% trans "Test Progress" %}
+                </a>
             </div>
         </div>
     </div>
@@ -91,7 +94,14 @@ document.getElementById('upload-form').addEventListener('submit', function(e) {
     progressDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "Uploading file..." %}';
     this.appendChild(progressDiv);
     
+    // Add a message about redirect
+    const redirectMsg = document.createElement('div');
+    redirectMsg.className = 'mt-2 alert alert-success';
+    redirectMsg.innerHTML = '<i class="fas fa-info-circle"></i> {% trans "File uploaded! Redirecting to progress page..." %}';
+    this.appendChild(redirectMsg);
+    
     // Note: Form will submit normally and redirect to progress page
+    console.log('Form submitted, expecting redirect to progress page');
 });
 
 // File input change handler

@@ -65,6 +65,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.core.middleware.RequestLoggingMiddleware",
+    "apps.core.middleware.SSRPerformanceMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -236,6 +237,51 @@ DATA_PROCESSING_DIR = {
     "RETRY_COUNT": 3,
     "QUALITY_THRESHOLD": 0.95,
 }
+
+# Enhanced caching configuration for SSR
+# Fallback to local memory cache if Redis is not available
+try:
+    import redis
+
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": env("REDIS_URL", default="redis://localhost:6379/1"),
+            "KEY_PREFIX": "kizuna_ssr",
+            "TIMEOUT": 300,  # 5 minutes default
+        }
+    }
+except ImportError:
+    # Fallback to local memory cache
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "unique-snowflake",
+            "TIMEOUT": 300,
+        }
+    }
+
+# Session configuration for SSR
+# Use cache-based sessions if Redis is available, otherwise use database
+try:
+    import redis
+
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "default"
+except ImportError:
+    SESSION_ENGINE = "django.contrib.sessions.backends.db"
+
+# Template optimization for SSR - only in production
+if not DEBUG:
+    TEMPLATES[0]["OPTIONS"]["loaders"] = [
+        (
+            "django.template.loaders.cached.Loader",
+            [
+                "django.template.loaders.filesystem.Loader",
+                "django.template.loaders.app_directories.Loader",
+            ],
+        ),
+    ]
 
 # Logging settings
 LOGGING = {

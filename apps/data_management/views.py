@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from django.contrib import messages
@@ -14,6 +15,8 @@ from .forms import DataFilterForm, DataUploadForm
 from .models import DataUpload, ProcessingError
 from .tasks import process_data_upload
 
+logger = logging.getLogger(__name__)
+
 
 class DataUploadView(LoginRequiredMixin, CreateView):
     """View for uploading data files"""
@@ -29,6 +32,7 @@ class DataUploadView(LoginRequiredMixin, CreateView):
 
         # Start background processing
         try:
+            logger.info(f"Starting background processing for upload {self.object.id}")
             process_data_upload.delay(str(self.object.id))
             messages.success(
                 self.request,
@@ -37,8 +41,12 @@ class DataUploadView(LoginRequiredMixin, CreateView):
                 ),
             )
             # Redirect to progress page instead of staying on upload form
+            logger.info(f"Redirecting to progress page for upload {self.object.id}")
             return redirect("data_management:upload_progress", upload_id=self.object.id)
         except Exception as e:
+            logger.error(
+                f"Failed to start processing for upload {self.object.id}: {str(e)}"
+            )
             messages.error(
                 self.request,
                 _(
@@ -129,7 +137,25 @@ def upload_progress(request, upload_id):
     """View for checking upload progress"""
     upload = get_object_or_404(DataUpload, id=upload_id, uploaded_by=request.user)
 
-    return render(request, "data_management/upload_progress.html", {"upload": upload})
+    logger.info(
+        f"Progress page accessed for upload {upload_id}, status: {upload.status}"
+    )
+
+    # Add some debugging information
+    context = {
+        "upload": upload,
+        "debug_info": {
+            "upload_id": str(upload.id),
+            "status": upload.status,
+            "current_stage": upload.current_stage,
+            "stage_progress": upload.stage_progress,
+            "completed_stages": upload.completed_stages,
+            "total_stages": upload.total_stages,
+            "overall_progress": upload.get_overall_progress(),
+        },
+    }
+
+    return render(request, "data_management/upload_progress.html", context)
 
 
 @login_required
@@ -424,3 +450,60 @@ def data_quality_report(request):
             "title": _("Data Quality Report"),
         },
     )
+
+
+@login_required
+def test_progress(request):
+    """Test view to check if progress tracking is working"""
+
+    # Create a test upload for debugging
+    test_upload, created = DataUpload.objects.get_or_create(
+        original_file_name="test_progress.xlsx",
+        defaults={
+            "uploaded_by": request.user,
+            "file_type": "odoo_export",
+            "status": "processing",
+            "current_stage": "extracting",
+            "stage_progress": 25,
+            "completed_stages": 0,
+            "total_stages": 5,
+        },
+    )
+
+    if not created:
+        # Update existing test upload
+        test_upload.status = "processing"
+        test_upload.current_stage = "extracting"
+        test_upload.stage_progress = 25
+        test_upload.completed_stages = 0
+        test_upload.save()
+
+    logger.info(f"Test progress view accessed, test upload ID: {test_upload.id}")
+
+    return redirect("data_management:upload_progress", upload_id=test_upload.id)
+
+
+@login_required
+def check_progress_ajax(request, upload_id):
+    """AJAX endpoint to check upload progress"""
+    from django.http import JsonResponse
+
+    try:
+        upload = DataUpload.objects.get(id=upload_id, uploaded_by=request.user)
+
+        progress_data = {
+            "status": upload.status,
+            "current_stage": upload.current_stage,
+            "stage_progress": upload.stage_progress,
+            "completed_stages": upload.completed_stages,
+            "total_stages": upload.total_stages,
+            "overall_progress": upload.get_overall_progress(),
+            "processed_records": upload.processed_records,
+            "error_records": upload.error_records,
+            "total_records": upload.total_records,
+        }
+
+        return JsonResponse(progress_data)
+
+    except DataUpload.DoesNotExist:
+        return JsonResponse({"error": "Upload not found"}, status=404)

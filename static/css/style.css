@@ -1,2 +1,277 @@
 /* Minimal site-wide CSS placeholder */
 body { }
+
+/* Revenue Journey Styles */
+.category-sales-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.category-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.category-item:last-child {
+    border-bottom: none;
+}
+
+.category-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.category-name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.category-sales {
+    font-size: 12px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.category-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 120px;
+}
+
+.category-progress .progress {
+    flex: 1;
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.category-progress .progress-bar {
+    background: linear-gradient(90deg, #007bff, #0056b3);
+    transition: width 0.3s ease;
+}
+
+.category-progress .percentage {
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+    min-width: 40px;
+    text-align: right;
+}
+
+/* Top Products Styles */
+.top-products-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.product-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.product-item:last-child {
+    border-bottom: none;
+}
+
+.product-rank {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ffc107, #ff8c00);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 12px;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.product-item:nth-child(1) .product-rank {
+    background: linear-gradient(135deg, #ffd700, #ffb347);
+}
+
+.product-item:nth-child(2) .product-rank {
+    background: linear-gradient(135deg, #c0c0c0, #a9a9a9);
+}
+
+.product-item:nth-child(3) .product-rank {
+    background: linear-gradient(135deg, #cd7f32, #b8860b);
+}
+
+.product-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.product-name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 3px;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.product-sales {
+    font-size: 12px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.product-quantity {
+    margin-left: 10px;
+}
+
+.product-quantity .badge {
+    font-size: 10px;
+    padding: 4px 8px;
+}
+
+/* Revenue Trends Styles */
+.revenue-trends {
+    padding: 20px 0;
+}
+
+.trend-chart {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    height: 200px;
+    gap: 10px;
+    padding: 20px 0;
+}
+
+.trend-day {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.day-bar {
+    width: 100%;
+    max-width: 40px;
+    background: linear-gradient(180deg, #28a745, #20c997);
+    border-radius: 4px 4px 0 0;
+    position: relative;
+    min-height: 10px;
+    transition: all 0.3s ease;
+}
+
+.day-bar:hover {
+    transform: scaleY(1.05);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.bar-tooltip {
+    position: absolute;
+    top: -35px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2c3e50;
+    color: white;
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+.bar-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: #2c3e50;
+}
+
+.day-bar:hover .bar-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+.day-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6c757d;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.day-date {
+    font-size: 11px;
+    color: #adb5bd;
+    margin-top: 8px;
+}
+
+/* Empty State Styles */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+.empty-state h4 {
+    margin: 15px 0 10px 0;
+    color: #495057;
+    font-weight: 600;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* Story Card Enhancements - Moved to components.css for consistency */
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .trend-chart {
+        height: 150px;
+        gap: 5px;
+    }
+    
+    .day-bar {
+        max-width: 30px;
+    }
+    
+    .category-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .category-progress {
+        width: 100%;
+    }
+    
+    .product-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .product-quantity {
+        margin-left: 0;
+    }
+}

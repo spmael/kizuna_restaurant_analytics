@@ -6,38 +6,38 @@
 const theme = {
   // === COLOR PALETTE ===
   colors: {
-    primary: getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim(),
-    secondary: getComputedStyle(document.documentElement).getPropertyValue('--color-secondary').trim(),
-    accent: getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim(),
-    success: getComputedStyle(document.documentElement).getPropertyValue('--color-success').trim(),
-    warning: getComputedStyle(document.documentElement).getPropertyValue('--color-warning').trim(),
-    error: getComputedStyle(document.documentElement).getPropertyValue('--color-error').trim(),
-    info: getComputedStyle(document.documentElement).getPropertyValue('--color-info').trim(),
+    primary: getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#E07A5F',
+    secondary: getComputedStyle(document.documentElement).getPropertyValue('--color-secondary').trim() || '#81B29A',
+    accent: getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#F2CC8F',
+    success: getComputedStyle(document.documentElement).getPropertyValue('--color-success').trim() || '#3D405B',
+    warning: getComputedStyle(document.documentElement).getPropertyValue('--color-warning').trim() || '#E07A5F',
+    error: getComputedStyle(document.documentElement).getPropertyValue('--color-error').trim() || '#E07A5F',
+    info: getComputedStyle(document.documentElement).getPropertyValue('--color-info').trim() || '#81B29A',
     
     // Background colors
-    bgPrimary: getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim(),
-    bgSecondary: getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim(),
-    bgTertiary: getComputedStyle(document.documentElement).getPropertyValue('--bg-tertiary').trim(),
+    bgPrimary: getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim() || '#FFFFFF',
+    bgSecondary: getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#F8F9FA',
+    bgTertiary: getComputedStyle(document.documentElement).getPropertyValue('--bg-tertiary').trim() || '#E9ECEF',
     
     // Text colors
-    textPrimary: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim(),
-    textSecondary: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim(),
-    textLight: getComputedStyle(document.documentElement).getPropertyValue('--text-light').trim(),
-    textMuted: getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim(),
-    textHeading: getComputedStyle(document.documentElement).getPropertyValue('--text-heading').trim(),
+    textPrimary: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333333',
+    textSecondary: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#666666',
+    textLight: getComputedStyle(document.documentElement).getPropertyValue('--text-light').trim() || '#999999',
+    textMuted: getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#CCCCCC',
+    textHeading: getComputedStyle(document.documentElement).getPropertyValue('--text-heading').trim() || '#333333',
   },
 
   // === CHART CONFIGURATIONS ===
   chartDefaults: {
     responsive: true,
     maintainAspectRatio: false,
-    fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-family-primary').trim(),
+    fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-family-primary').trim() || 'Arial, sans-serif',
     
     plugins: {
       legend: {
         labels: {
-          fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-family-primary').trim(),
-          color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim(),
+          fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-family-primary').trim() || 'Arial, sans-serif',
+          color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#666666',
           usePointStyle: true,
           padding: 20,
           font: {
@@ -47,10 +47,10 @@ const theme = {
         }
       },
       tooltip: {
-        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim(),
-        titleColor: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim(),
-        bodyColor: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim(),
-        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim(),
+        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#FFFFFF',
+        titleColor: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333333',
+        bodyColor: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#666666',
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#E07A5F',
         borderWidth: 1,
         cornerRadius: 8,
         titleFont: {
@@ -67,11 +67,11 @@ const theme = {
     scales: {
       x: {
         grid: {
-          color: getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() + '20'
+          color: (getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#E07A5F') + '20'
         },
         ticks: {
-          color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim(),
-          fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-family-primary').trim(),
+          color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#666666',
+          fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-family-primary').trim() || 'Arial, sans-serif',
           font: {
             size: 11
           }
@@ -79,11 +79,11 @@ const theme = {
       },
       y: {
         grid: {
-          color: getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() + '20'
+          color: (getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#E07A5F') + '20'
         },
         ticks: {
-          color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim(),
-          fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-family-primary').trim(),
+          color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#666666',
+          fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-family-primary').trim() || 'Arial, sans-serif',
           font: {
             size: 11
           }
@@ -101,60 +101,56 @@ const theme = {
       pointHoverRadius: 6,
       fill: false
     },
-    
     bar: {
-      borderWidth: 0,
-      borderRadius: 4,
-      borderSkipped: false
+      borderWidth: 1,
+      borderRadius: 4
     },
-    
-    pie: {
-      borderWidth: 2,
-      borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim()
-    },
-    
     doughnut: {
       borderWidth: 2,
-      borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim(),
       cutout: '60%'
     },
-    
+    pie: {
+      borderWidth: 2
+    },
     area: {
       borderWidth: 2,
-      tension: 0.4,
       fill: true
     }
   },
 
-  // === COLOR PALETTES FOR CHARTS ===
+  // === COLOR PALETTES ===
   colorPalettes: {
     primary: [
-      '#E07A5F', // Warm Terracotta
-      '#F2B670', // Golden Sunset
-      '#6B8E3D', // Savanna Green
-      '#81654F', // Clay Brown
-      '#F18F01', // Sunset Orange
-      '#C73E1D', // Desert Rose
+      '#E07A5F', '#81B29A', '#F2CC8F', '#3D405B', '#A8D5BA',
+      '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8BBD9', '#FFCC80'
     ],
-    
-    pastel: [
-      '#F4A261', // Light Terracotta
-      '#F7D794', // Light Golden
-      '#A8D5BA', // Light Green
-      '#B8A9A9', // Light Brown
-      '#F4B942', // Light Orange
-      '#E8A87C', // Light Rose
+    secondary: [
+      '#81B29A', '#F2CC8F', '#3D405B', '#E07A5F', '#A8D5BA',
+      '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8BBD9', '#FFCC80'
     ],
-    
-    gradient: [
-      'linear-gradient(135deg, #E07A5F 0%, #F2B670 100%)',
-      'linear-gradient(135deg, #6B8E3D 0%, #A8D5BA 100%)',
-      'linear-gradient(135deg, #81654F 0%, #B8A9A9 100%)',
-      'linear-gradient(135deg, #F18F01 0%, #F4B942 100%)',
-      'linear-gradient(135deg, #C73E1D 0%, #E8A87C 100%)',
+    success: [
+      '#3D405B', '#81B29A', '#A8D5BA', '#F2CC8F', '#E07A5F',
+      '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8BBD9', '#FFCC80'
     ]
   }
 };
+
+// Fallback colors for when CSS variables are not available
+const themeFallbackColors = {
+  primary: '#E07A5F',
+  secondary: '#81B29A',
+  success: '#3D405B',
+  warning: '#F2CC8F',
+  info: '#85C1E9'
+};
+
+/**
+ * Utility function to get CSS color with fallback
+ */
+function getThemeColor(cssVariable, fallback) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(cssVariable).trim();
+  return value || fallback;
+}
 
 /**
  * Chart.js Configuration Factory
@@ -270,10 +266,10 @@ class ChartConfigFactory {
       data: {
         labels: data.labels,
         datasets: [{
-          label: 'Orders',
+          label: 'Peak Hours',
           data: data.values,
-          backgroundColor: this.theme.colors.secondary,
-          borderColor: this.theme.colors.secondary,
+          backgroundColor: this.theme.colors.info,
+          borderColor: this.theme.colors.info,
           ...this.theme.chartTypes.bar
         }]
       },
@@ -283,7 +279,7 @@ class ChartConfigFactory {
           ...this.theme.chartDefaults.plugins,
           title: {
             display: true,
-            text: 'Peak Hours',
+            text: 'Peak Hours Analysis',
             color: this.theme.colors.textHeading,
             font: {
               size: 16,
@@ -300,15 +296,14 @@ class ChartConfigFactory {
    */
   createCustomerFlowChart(data) {
     return {
-      ...this.createBaseConfig('line'),
+      ...this.createBaseConfig('area'),
       data: {
         labels: data.labels,
         datasets: [{
-          label: 'Customers',
+          label: 'Customer Flow',
           data: data.values,
           borderColor: this.theme.colors.success,
-          backgroundColor: this.theme.colors.success + '30',
-          fill: true,
+          backgroundColor: this.theme.colors.success + '40',
           ...this.theme.chartTypes.area
         }]
       },
@@ -318,7 +313,7 @@ class ChartConfigFactory {
           ...this.theme.chartDefaults.plugins,
           title: {
             display: true,
-            text: 'Customer Flow',
+            text: 'Customer Flow Analysis',
             color: this.theme.colors.textHeading,
             font: {
               size: 16,
@@ -332,134 +327,72 @@ class ChartConfigFactory {
 }
 
 /**
- * Utility Functions
- */
-const themeUtils = {
-  /**
-   * Format currency
-   */
-  formatCurrency: (amount, currency = 'FCFA') => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  },
-
-  /**
-   * Format percentage
-   */
-  formatPercentage: (value, decimals = 1) => {
-    return value.toFixed(decimals) + '%';
-  },
-
-  /**
-   * Calculate percentage change
-   */
-  calculateChange: (current, previous) => {
-    if (previous === 0) return 0;
-    return ((current - previous) / previous) * 100;
-  },
-
-  /**
-   * Get change indicator class
-   */
-  getChangeClass: (change) => {
-    if (change > 0) return 'positive';
-    if (change < 0) return 'negative';
-    return 'neutral';
-  },
-
-  /**
-   * Get status badge class
-   */
-  getStatusClass: (value, thresholds) => {
-    if (value >= thresholds.excellent) return 'success';
-    if (value >= thresholds.good) return 'info';
-    if (value >= thresholds.warning) return 'warning';
-    return 'error';
-  },
-
-  /**
-   * Debounce function
-   */
-  debounce: (func, wait) => {
-    let timeout;
-    return function executedFunction(...args) {
-      const later = () => {
-        clearTimeout(timeout);
-        func(...args);
-      };
-      clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
-    };
-  },
-
-  /**
-   * Throttle function
-   */
-  throttle: (func, limit) => {
-    let inThrottle;
-    return function() {
-      const args = arguments;
-      const context = this;
-      if (!inThrottle) {
-        func.apply(context, args);
-        inThrottle = true;
-        setTimeout(() => inThrottle = false, limit);
-      }
-    };
-  }
-};
-
-/**
- * Dashboard Component Manager
+ * Dashboard Manager Class
+ * Handles dashboard initialization, chart management, and AJAX updates
  */
 class DashboardManager {
   constructor() {
-    this.chartFactory = new ChartConfigFactory();
     this.charts = new Map();
+    this.chartFactory = new ChartConfigFactory();
+    this.isLoading = false;
+    this.currentDateRange = 7; // Default to 7 days
+    
     this.init();
   }
 
   init() {
-    this.setupEventListeners();
-    this.initializeCharts();
-    this.setupResponsiveHandling();
-  }
-
-  setupEventListeners() {
-    // Date range picker
-    const dateRangePicker = document.getElementById('dateRangePicker');
-    if (dateRangePicker) {
-      dateRangePicker.addEventListener('change', this.handleDateRangeChange.bind(this));
-    }
-
-    // Filter controls
-    const filterControls = document.querySelectorAll('.filter-select');
-    filterControls.forEach(control => {
-      control.addEventListener('change', this.handleFilterChange.bind(this));
-    });
-
-    // Chart type toggles
-    const chartToggles = document.querySelectorAll('.chart-toggle');
-    chartToggles.forEach(toggle => {
-      toggle.addEventListener('click', this.handleChartToggle.bind(this));
-    });
+    console.log('DashboardManager initialized');
+    // Delay initialization to allow template charts to initialize first
+    setTimeout(() => {
+      this.initializeCharts();
+    }, 100);
+    this.bindEvents();
   }
 
   initializeCharts() {
-    // Initialize all chart canvases
-    const chartCanvases = document.querySelectorAll('[data-chart-type]');
+    // Initialize only charts that are not already managed by the template
+    // Check if the template's chart initialization has already run
+    if (window.revenueChart || window.categoryChart) {
+      console.log('Charts already initialized by template, skipping DashboardManager initialization');
+      return;
+    }
+    
+    // Initialize all chart canvases - only select canvas elements
+    const chartCanvases = document.querySelectorAll('canvas[data-chart-type]');
     chartCanvases.forEach(canvas => {
       const chartType = canvas.dataset.chartType;
       const chartData = this.getChartData(canvas.dataset.chartId);
       
       if (chartData) {
-        const config = this.chartFactory[`create${chartType}Chart`](chartData);
-        const chart = new Chart(canvas.getContext('2d'), config);
-        this.charts.set(canvas.dataset.chartId, chart);
+        // Map chart types to available factory methods
+        let factoryMethod;
+        switch (chartType.toLowerCase()) {
+          case 'revenue':
+          case 'line':
+            factoryMethod = 'createRevenueChart';
+            break;
+          case 'category':
+          case 'doughnut':
+          case 'pie':
+            factoryMethod = 'createCategoryChart';
+            break;
+          case 'bar':
+            factoryMethod = 'createPeakHoursChart';
+            break;
+          case 'area':
+            factoryMethod = 'createCustomerFlowChart';
+            break;
+          default:
+            factoryMethod = 'createRevenueChart';
+        }
+        
+        if (this.chartFactory[factoryMethod]) {
+          const config = this.chartFactory[factoryMethod](chartData);
+          const chart = new Chart(canvas.getContext('2d'), config);
+          this.charts.set(canvas.dataset.chartId, chart);
+        } else {
+          console.warn(`Factory method ${factoryMethod} not found for chart type ${chartType}`);
+        }
       }
     });
   }
@@ -489,94 +422,234 @@ class DashboardManager {
     return mockData[chartId];
   }
 
-  handleDateRangeChange(event) {
-    const dateRange = event.target.value;
-    this.updateDashboardData(dateRange);
-  }
-
-  handleFilterChange(event) {
-    const filterType = event.target.dataset.filterType;
-    const filterValue = event.target.value;
-    this.updateDashboardData(null, { [filterType]: filterValue });
-  }
-
-  handleChartToggle(event) {
-    const chartId = event.target.dataset.chartId;
-    const chartType = event.target.dataset.chartType;
-    this.updateChartType(chartId, chartType);
-  }
-
-  updateDashboardData(dateRange, filters = {}) {
-    // Show loading state
-    this.showLoading();
+  bindEvents() {
+    // Note: Date range buttons use onclick handlers instead of data-date-range attributes
+    // The buttons call updateRevenueDateRange() and updateCostDateRange() directly
+    // So we don't need to bind events here
     
-    // Simulate API call
-    setTimeout(() => {
-      this.refreshCharts();
-      this.hideLoading();
-    }, 1000);
+    // Bind filter change events
+    const filterSelects = document.querySelectorAll('[data-filter]');
+    filterSelects.forEach(select => {
+      select.addEventListener('change', (e) => {
+        this.updateFilters(e.target.dataset.filter, e.target.value);
+      });
+    });
   }
 
-  updateChartType(chartId, chartType) {
-    const chart = this.charts.get(chartId);
-    if (chart) {
-      chart.destroy();
-    }
+  updateDateRange(days) {
+    // This method is kept for compatibility but the actual date range updates
+    // are handled by the template's updateRevenueDateRange() and updateCostDateRange() functions
+    if (this.isLoading) return;
     
-    const canvas = document.querySelector(`[data-chart-id="${chartId}"]`);
-    const chartData = this.getChartData(chartId);
-    
-    if (chartData) {
-      const config = this.chartFactory[`create${chartType}Chart`](chartData);
-      const newChart = new Chart(canvas.getContext('2d'), config);
-      this.charts.set(chartId, newChart);
-    }
+    this.currentDateRange = days;
+    this.updateButtonStates(days);
+    this.fetchDashboardData(days);
   }
 
-  refreshCharts() {
-    this.charts.forEach((chart, chartId) => {
-      const chartData = this.getChartData(chartId);
-      if (chartData) {
-        chart.data.labels = chartData.labels;
-        chart.data.datasets[0].data = chartData.values;
-        chart.update();
+  updateButtonStates(activeDays) {
+    // Update button states for all date range buttons across chapters
+    const allDateRangeButtons = document.querySelectorAll('.btn-african[onclick*="DateRange"]');
+    allDateRangeButtons.forEach(button => {
+      const onclick = button.getAttribute('onclick');
+      const days = parseInt(onclick.match(/\d+/)?.[0] || '7');
+      
+      if (days === activeDays) {
+        button.classList.remove('btn-african-outline');
+        button.classList.add('btn-african-primary');
+      } else {
+        button.classList.remove('btn-african-primary');
+        button.classList.add('btn-african-outline');
       }
     });
   }
 
+  async fetchDashboardData(days) {
+    if (this.isLoading) return;
+    
+    this.isLoading = true;
+    this.showLoading();
+    
+    try {
+      const response = await fetch(`/analytics/data/?days=${days}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      this.updateDashboard(data);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      this.showError('Failed to load dashboard data');
+    } finally {
+      this.isLoading = false;
+      this.hideLoading();
+    }
+  }
+
+  updateDashboard(data) {
+    // Update metric cards
+    this.updateMetricCards(data.period_totals || {});
+    
+    // Update charts
+    this.updateCharts(data);
+    
+    // Update date range display
+    if (data.date_range) {
+      this.updateDateRangeDisplay(data.date_range);
+    }
+  }
+
+  updateMetricCards(totals) {
+    const metricSelectors = {
+      'revenue': '.metric-card.primary .metric-value',
+      'customers': '.metric-card.success .metric-value',
+      'orders': '.metric-card.info .metric-value',
+      'cost': '.metric-card.warning .metric-value'
+    };
+
+    if (totals.total_sales) {
+      const element = document.querySelector(metricSelectors.revenue);
+      if (element) {
+        element.textContent = `${parseInt(totals.total_sales).toLocaleString()} FCFA`;
+      }
+    }
+
+    if (totals.total_customers) {
+      const element = document.querySelector(metricSelectors.customers);
+      if (element) {
+        element.textContent = totals.total_customers;
+      }
+    }
+
+    if (totals.total_orders) {
+      const element = document.querySelector(metricSelectors.orders);
+      if (element) {
+        element.textContent = totals.total_orders;
+      }
+    }
+
+    if (totals.avg_food_cost_pct) {
+      const element = document.querySelector(metricSelectors.cost);
+      if (element) {
+        element.textContent = `${parseFloat(totals.avg_food_cost_pct).toFixed(1)}%`;
+      }
+    }
+  }
+
+  updateCharts(data) {
+    // Update revenue chart
+    if (data.revenue_data && window.revenueChart) {
+      window.revenueChart.data.labels = data.revenue_data.labels || [];
+      window.revenueChart.data.datasets[0].data = data.revenue_data.revenue || [];
+      window.revenueChart.update();
+    }
+
+    // Update category chart
+    if (data.category_data && window.categoryChart) {
+      window.categoryChart.data.labels = data.category_data.labels || [];
+      window.categoryChart.data.datasets[0].data = data.category_data.revenue || [];
+      window.categoryChart.update();
+    }
+
+    // Update other charts as needed
+    this.updateRevenueSectionCharts(data);
+  }
+
+  updateRevenueSectionCharts(data) {
+    // Update daily revenue chart
+    if (data.daily_revenue_chart && window.dailyRevenueChart) {
+      window.dailyRevenueChart.data.labels = data.daily_revenue_chart.labels || [];
+      window.dailyRevenueChart.data.datasets[0].data = data.daily_revenue_chart.revenue || [];
+      window.dailyRevenueChart.update();
+    }
+
+    // Update revenue category chart
+    if (data.revenue_category_chart && window.revenueCategoryChart) {
+      window.revenueCategoryChart.data.labels = data.revenue_category_chart.labels || [];
+      window.revenueCategoryChart.data.datasets[0].data = data.revenue_category_chart.revenue || [];
+      window.revenueCategoryChart.update();
+    }
+
+    // Update time based chart
+    if (data.time_based_chart && window.timeBasedChart) {
+      window.timeBasedChart.data.labels = data.time_based_chart.labels || [];
+      window.timeBasedChart.data.datasets[0].data = data.time_based_chart.revenue || [];
+      window.timeBasedChart.update();
+    }
+
+    // Update payment chart
+    if (data.payment_chart && window.paymentChart) {
+      window.paymentChart.data.labels = data.payment_chart.labels || [];
+      window.paymentChart.data.datasets[0].data = data.payment_chart.amounts || [];
+      window.paymentChart.update();
+    }
+  }
+
+  updateDateRangeDisplay(dateRange) {
+    const subtitles = document.querySelectorAll('.chapter-subtitle');
+    if (subtitles.length > 0 && dateRange.start && dateRange.end) {
+      const startDate = new Date(dateRange.start);
+      const endDate = new Date(dateRange.end);
+      
+      const startFormatted = startDate.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+      const endFormatted = endDate.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+      
+      subtitles.forEach((subtitle, index) => {
+        const parentChapter = subtitle.closest('.story-chapter-content');
+        if (parentChapter && parentChapter.id === 'morning-insights') {
+          subtitle.textContent = `Performance snapshot for ${startFormatted} to ${endFormatted}`;
+        } else if (parentChapter && parentChapter.id === 'cost-chronicles') {
+          subtitle.textContent = `Cost analysis for ${startFormatted} to ${endFormatted}`;
+        } else {
+          subtitle.textContent = `Analysis for ${startFormatted} to ${endFormatted}`;
+        }
+      });
+    }
+  }
+
   showLoading() {
-    const loadingOverlays = document.querySelectorAll('.loading-overlay');
-    loadingOverlays.forEach(overlay => {
-      overlay.style.display = 'flex';
-    });
+    const loadingElement = document.querySelector('.dashboard-loading');
+    if (loadingElement) {
+      loadingElement.style.display = 'flex';
+    }
   }
 
   hideLoading() {
-    const loadingOverlays = document.querySelectorAll('.loading-overlay');
-    loadingOverlays.forEach(overlay => {
-      overlay.style.display = 'none';
-    });
+    const loadingElement = document.querySelector('.dashboard-loading');
+    if (loadingElement) {
+      loadingElement.style.display = 'none';
+    }
   }
 
-  setupResponsiveHandling() {
-    const resizeHandler = themeUtils.debounce(() => {
-      this.charts.forEach(chart => {
-        chart.resize();
-      });
-    }, 250);
-    
-    window.addEventListener('resize', resizeHandler);
+  showError(message) {
+    const errorElement = document.querySelector('.dashboard-error');
+    if (errorElement) {
+      errorElement.textContent = message;
+      errorElement.style.display = 'block';
+      setTimeout(() => {
+        errorElement.style.display = 'none';
+      }, 5000);
+    }
+  }
+
+  updateFilters(filterType, filterValue) {
+    // Handle filter updates
+    console.log(`Filter updated: ${filterType} = ${filterValue}`);
+    // Implement filter logic as needed
   }
 }
 
 // Initialize dashboard when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
+  // Check if Chart.js is available
   if (typeof Chart !== 'undefined') {
-    window.dashboardManager = new DashboardManager();
+    console.log('Chart.js loaded successfully');
+    new DashboardManager();
+  } else {
+    console.error('Chart.js not loaded');
   }
 });
 
-// Export for use in other modules
+// Export for global access
+window.DashboardManager = DashboardManager;
 window.theme = theme;
-window.themeUtils = themeUtils;
-window.ChartConfigFactory = ChartConfigFactory;

@@ -33,10 +33,8 @@ class RecipeCostingService:
         base_cost = ingredient_costs["total_ingredient_cost"]
         waste_cost = base_cost * (recipe.waste_factor_percentage / 100)
 
-        # Add labor cost
-        labor_cost = (
-            base_cost * (recipe.labour_cost_percentage / 100)
-        ) * recipe.serving_size
+        # Add labor cost (apply percentage to batch/base cost only)
+        labor_cost = base_cost * (recipe.labour_cost_percentage / 100)
 
         # Total costs
         total_recipe_cost = base_cost + waste_cost + labor_cost
@@ -158,10 +156,8 @@ class RecipeCostingService:
         base_cost = total_cost
         waste_cost = base_cost * (recipe.waste_factor_percentage / 100)
 
-        # Add labor cost
-        labor_cost = (
-            base_cost * (recipe.labour_cost_percentage / 100)
-        ) * recipe.serving_size
+        # Add labor cost (apply percentage to batch/base cost only)
+        labor_cost = base_cost * (recipe.labour_cost_percentage / 100)
 
         # Total costs
         total_recipe_cost = base_cost + waste_cost + labor_cost

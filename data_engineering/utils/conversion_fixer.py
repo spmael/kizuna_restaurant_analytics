@@ -44,13 +44,6 @@ class ConversionFixer:
                 "correct_unit": "ml",
                 "description": "ml amount mistakenly treated as unit",
             },
-            # Pattern: large quantity in "g" → likely kg conversion error
-            "kg_to_g_error": {
-                "detection": lambda qty, unit: qty > 10000 and unit == "g",
-                "correction_factor": 1000,  # Divide by 1K to get back to kg
-                "correct_unit": "kg",
-                "description": "kg amount mistakenly treated as grams",
-            },
         }
 
         self.fixes_applied = 0
@@ -79,9 +72,18 @@ class ConversionFixer:
                 quantity = row.get("quantity_purchased", 0)
                 product = row.get("product", "Unknown")
 
+                # Get the current unit of measure for this product
+                current_unit = None
+                try:
+                    product_obj = Product.objects.filter(name__iexact=product).first()
+                    if product_obj and product_obj.unit_of_measure:
+                        current_unit = product_obj.unit_of_measure.name
+                except Exception:
+                    pass  # If we can't get the unit, continue without it
+
                 # Check for conversion errors (without relying on unit_of_measure)
                 fix_result = self._check_and_fix_conversion_large_quantities(
-                    quantity, product, idx + 1
+                    quantity, product, idx + 1, current_unit
                 )
 
                 if fix_result:
@@ -124,7 +126,7 @@ class ConversionFixer:
         return fixed_df
 
     def _check_and_fix_conversion_large_quantities(
-        self, quantity: float, product: str, row_num: int
+        self, quantity: float, product: str, row_num: int, current_unit: str = None
     ) -> Optional[Tuple[float, str, str]]:
         """Check if a large quantity needs fixing and return the correction"""
 
@@ -155,17 +157,6 @@ class ConversionFixer:
             )
             return corrected_qty, corrected_unit, pattern_name
 
-        elif quantity > 10000:  # Medium-large quantities
-            # Likely kg → g conversion error (divide by 1K)
-            corrected_qty = quantity / 1000
-            corrected_unit = "kg"
-            pattern_name = "kg_to_g_error"
-            logger.info(
-                f"Row {row_num}: Detected kg_to_g_error for {product} - "
-                f"{quantity} → {corrected_qty} {corrected_unit}"
-            )
-            return corrected_qty, corrected_unit, pattern_name
-
         return None
 
     def _update_product_unit_of_measure(self, product_name: str, correct_unit: str):
@@ -176,24 +167,27 @@ class ConversionFixer:
             if product:
                 # Get or create the correct unit of measure
                 unit_of_measure, created = UnitOfMeasure.objects.get_or_create(
-                    name=correct_unit,
-                    defaults={"description": f"Unit: {correct_unit}"}
+                    name=correct_unit, defaults={"description": f"Unit: {correct_unit}"}
                 )
-                
+
                 # Update the product's unit of measure
-                old_unit = product.unit_of_measure.name if product.unit_of_measure else "None"
+                old_unit = (
+                    product.unit_of_measure.name if product.unit_of_measure else "None"
+                )
                 product.unit_of_measure = unit_of_measure
                 product.save()
-                
+
                 logger.info(
                     f"Updated product '{product_name}' unit of measure: "
                     f"{old_unit} → {correct_unit}"
                 )
             else:
                 logger.warning(f"Product '{product_name}' not found in database")
-                
+
         except Exception as e:
-            logger.error(f"Error updating unit of measure for product '{product_name}': {str(e)}")
+            logger.error(
+                f"Error updating unit of measure for product '{product_name}': {str(e)}"
+            )
 
     def get_fixes_summary(self) -> Dict[str, Any]:
         """Get a summary of all fixes applied"""

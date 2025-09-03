@@ -1,0 +1,233 @@
+{% extends "base/base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "Performance Analysis" %} - Kizuna Restaurant Analytics{% endblock %}
+{% block main_class %}container-fluid mt-4{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">{% trans "Performance Analysis" %}</h1>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'analytics:dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> {% trans "Back to Dashboard" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        <i class="fas fa-exclamation-triangle"></i>
+        {% trans "Error loading performance data:" %} {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- Performance Overview -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line"></i>
+                        {% trans "Performance Overview" %} - {{ target_date|date:"F j, Y" }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if performance_data %}
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h3 class="text-primary">{{ performance_data.total_revenue|floatformat:0 }} FCFA</h3>
+                                    <p class="text-muted">{% trans "Total Revenue" %}</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h3 class="text-success">{{ performance_data.total_orders }}</h3>
+                                    <p class="text-muted">{% trans "Total Orders" %}</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h3 class="text-info">{{ performance_data.total_customers }}</h3>
+                                    <p class="text-muted">{% trans "Total Customers" %}</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h3 class="text-warning">{{ performance_data.performance_grade }}</h3>
+                                    <p class="text-muted">{% trans "Performance Grade" %}</p>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-chart-line fa-3x mb-3"></i>
+                            <p>{% trans "No performance data available for this date." %}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Method Analysis -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-credit-card"></i>
+                        {% trans "Payment Method Analysis" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if payment_analysis %}
+                        <canvas id="paymentChart" width="400" height="200"></canvas>
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <p>{% trans "No payment data available." %}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar-alt"></i>
+                        {% trans "Monthly Performance" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if monthly_report %}
+                        <div class="row">
+                            <div class="col-6">
+                                <h6>{% trans "Monthly Revenue" %}</h6>
+                                <h4 class="text-primary">{{ monthly_report.total_revenue|floatformat:0 }} FCFA</h4>
+                            </div>
+                            <div class="col-6">
+                                <h6>{% trans "Monthly Orders" %}</h6>
+                                <h4 class="text-success">{{ monthly_report.total_orders }}</h4>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-6">
+                                <h6>{% trans "Avg Daily Revenue" %}</h6>
+                                <h4 class="text-info">{{ monthly_report.avg_daily_revenue|floatformat:0 }} FCFA</h4>
+                            </div>
+                            <div class="col-6">
+                                <h6>{% trans "Growth Rate" %}</h6>
+                                <h4 class="{% if monthly_report.growth_rate > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ monthly_report.growth_rate|floatformat:1 }}%
+                                </h4>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <p>{% trans "No monthly data available." %}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Trends -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-area"></i>
+                        {% trans "Recent Performance Trends" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_summaries %}
+                        <canvas id="trendsChart" width="400" height="200"></canvas>
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <p>{% trans "No trend data available." %}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% block extra_js %}
+<script src="{% static 'js/chart.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Payment Method Chart
+    {% if payment_analysis %}
+    const paymentCtx = document.getElementById('paymentChart').getContext('2d');
+    new Chart(paymentCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Cash', 'Mobile Money', 'Card'],
+            datasets: [{
+                data: [
+                    {{ payment_analysis.cash_percentage|default:0 }},
+                    {{ payment_analysis.mobile_money_percentage|default:0 }},
+                    {{ payment_analysis.card_percentage|default:0 }}
+                ],
+                backgroundColor: [
+                    '#28a745',
+                    '#17a2b8',
+                    '#ffc107'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    // Trends Chart
+    {% if recent_summaries %}
+    const trendsCtx = document.getElementById('trendsChart').getContext('2d');
+    new Chart(trendsCtx, {
+        type: 'line',
+        data: {
+            labels: [
+                {% for summary in recent_summaries %}
+                    '{{ summary.date|date:"M j" }}'{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                label: 'Revenue (FCFA)',
+                data: [
+                    {% for summary in recent_summaries %}
+                        {{ summary.total_sales|default:0 }}{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}
+{% endblock %}
